@@ -12,6 +12,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   bool isSubmitting = false;
+  bool isTermsAccepted = false;
   String username = '';
   String email = '';
   String phone = '';
@@ -36,7 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || !isTermsAccepted) return;
 
     setState(() {
       isSubmitting = true;
@@ -46,43 +47,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       Position location = await _fetchLocation();
-     var response = await Dio().post(
-  'https://api.brilldaddy.com/api/user/register',
-  data: {
-    'username': username,
-    'email': email,
-    'phone': phone,
-    'location': {
-      'latitude': location.latitude,
-      'longitude': location.longitude,
-    }
-  },
-  options: Options(validateStatus: (status) => status! < 500), // Accept 409 as a valid response
-);
+      var response = await Dio().post(
+        'https://api.brilldaddy.com/api/user/register',
+        data: {
+          'username': username,
+          'email': email,
+          'phone': phone,
+          'location': {
+            'latitude': location.latitude,
+            'longitude': location.longitude,
+          }
+        },
+        options: Options(validateStatus: (status) => status! < 500),
+      );
 
       print('Response status: ${response.statusCode}');
       print('Response data: ${response.data}');
 
-     if (response.statusCode == 200 || response.statusCode == 201) {
-  setState(() {
-    successMessage = 'Registration successful!';
-  });
-  Future.delayed(Duration(seconds: 2), () {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => LoginScreen()),
-    );
-  });
-} else if (response.statusCode == 409) {
-  setState(() {
-    errorMessage = 'User already exists. Please log in.';
-  });
-} else {
-  setState(() {
-    errorMessage = 'Registration failed: ${response.data['message'] ?? 'Unknown error'}';
-  });
-}
-
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        setState(() {
+          successMessage = 'Registration successful!';
+        });
+        Future.delayed(Duration(seconds: 2), () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => LoginScreen()),
+          );
+        });
+      } else if (response.statusCode == 409) {
+        setState(() {
+          errorMessage = 'User already exists. Please log in.';
+        });
+      } else {
+        setState(() {
+          errorMessage = 'Registration failed: ${response.data['message'] ?? 'Unknown error'}';
+        });
+      }
     } on DioException catch (dioError) {
       print('DioError: ${dioError.message}');
       setState(() {
@@ -179,7 +179,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return null;
                 },
               ),
-              SizedBox(height: 30),
+              SizedBox(height: 20),
+
+              /// **Terms and Conditions Checkbox**
+              Row(
+                children: [
+                  Checkbox(
+                    value: isTermsAccepted,
+                    onChanged: (value) {
+                      setState(() {
+                        isTermsAccepted = value!;
+                      });
+                    },
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        // TODO: Open Terms & Conditions page
+                        print("Open Terms & Conditions");
+                      },
+                      child: Text(
+                        "I accept the Terms & Conditions",
+                        style: TextStyle(
+                          color: Colors.indigo,
+                          decoration: TextDecoration.underline,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 20),
               SizedBox(
                 width: MediaQuery.of(context).size.width * 0.9,
                 child: ElevatedButton(
@@ -189,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: isSubmitting ? null : _handleSubmit,
+                  onPressed: isSubmitting || !isTermsAccepted ? null : _handleSubmit,
                   child: isSubmitting
                       ? CircularProgressIndicator(color: Colors.white)
                       : Text('Register',
@@ -213,8 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Already have an account?",
-                      style: TextStyle(fontSize: 16)),
+                  Text("Already have an account?", style: TextStyle(fontSize: 16)),
                   GestureDetector(
                     onTap: () {
                       Navigator.pushReplacement(

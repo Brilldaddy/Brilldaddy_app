@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
-import '../component/account/AddressFormPage.dart';
 import '../services/wishlist.dart';
 import 'payment_gateway.dart';
-import 'payment_success.dart';
 
 class AddressSelectionScreen extends StatefulWidget {
   final double totalAmount;
@@ -129,15 +127,6 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
 
   Future<void> navigateToAddAddress() async {
     // Navigate to AddAddressScreen and wait for the result
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => AddressFormPage(
-                onRefresh: () {
-                  fetchAddresses();
-                },
-              )),
-    );
     // If address added successfully, refresh the addresses list
     // if (result == true) {
     //   fetchAddresses();

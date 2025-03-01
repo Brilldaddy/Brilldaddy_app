@@ -1,5 +1,4 @@
 // order.dart
-import 'package:flutter/foundation.dart';
 import 'product.dart';
 
 class BankDetails {

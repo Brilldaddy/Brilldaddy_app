@@ -216,8 +216,7 @@ class _WinnerAlbumPageState extends State<WinnerAlbumPage> {
                           DateTime wonAtDateTime = DateTime.parse(winner.wonAt);
                           String formattedDate =
                               DateFormat.yMd().format(wonAtDateTime);
-                          String formattedTime =
-                              DateFormat.Hm().format(wonAtDateTime);
+                          DateFormat.Hm().format(wonAtDateTime);
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
