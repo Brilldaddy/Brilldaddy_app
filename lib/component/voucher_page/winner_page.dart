@@ -1,124 +1,169 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../models/winner.dart';
 
-class WinnersSection extends StatelessWidget {
-  final Future<List<dynamic>>? winners;
+class WinnersMarquee extends StatefulWidget {
+  @override
+  _WinnersMarqueeState createState() => _WinnersMarqueeState();
+}
 
-  WinnersSection({required this.winners});
+class _WinnersMarqueeState extends State<WinnersMarquee>
+    with SingleTickerProviderStateMixin {
+  List<Winner> winners = [];
+  late ScrollController _scrollController;
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: 20),
+    );
+    fetchWinners();
+  }
+
+  Future<void> fetchWinners() async {
+    try {
+      final response = await http
+          .get(Uri.parse('https://api.brilldaddy.com/api/voucher/getWinners'));
+      if (response.statusCode == 200) {
+        final List<dynamic> winnersData = jsonDecode(response.body);
+        final currentTime = DateTime.now().millisecondsSinceEpoch;
+        final validWinners = winnersData.where((winner) {
+          final endTime =
+              DateTime.parse(winner['endTime']).millisecondsSinceEpoch;
+          return endTime > currentTime;
+        }).toList();
+        setState(() {
+          winners =
+              validWinners.map((winner) => Winner.fromJson(winner)).toList();
+          _startScrolling();
+        });
+      } else {
+        print('Failed to fetch winners: ${response.body}');
+      }
+    } catch (error) {
+      print('Failed to fetch winners: $error');
+    }
+  }
+
+  void _startScrolling() {
+    if (winners.isNotEmpty) {
+      Future.delayed(Duration(seconds: 1), () {
+        _autoScroll();
+      });
+    }
+  }
+
+  void _autoScroll() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(seconds: 10),
+        curve: Curves.linear,
+      ).then((_) {
+        _scrollController.jumpTo(0);
+        _autoScroll();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<dynamic>>(
-      future: winners,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        } else if (snapshot.hasError) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: Text("Error loading winners")),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Center(child: Text("No winners found")),
-          );
-        }
+    if (winners.isEmpty) return Container();
 
-        final winnersList = snapshot.data!;
-        return SizedBox(
-          height: 180, // Adjusted height for better visibility
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: winnersList.length,
-            itemBuilder: (context, index) {
-              final winner = winnersList[index];
-              final voucher = winner['voucherId'] as Map<String, dynamic>?;
-              final user = winner['userId'] as Map<String, dynamic>?;
-
-              return Card(
-                elevation: 5,
-                shadowColor: Colors.black26,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 16.0),
+      child: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8.0),
+            color: Colors.blue[800],
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.emoji_events, color: Colors.white),
+                SizedBox(width: 8.0),
+                Text(
+                  'Our Winners List',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold),
                 ),
-                margin: const EdgeInsets.all(8.0),
-                child: Container(
-                  width: 220,
-                  padding: const EdgeInsets.all(12),
+              ],
+            ),
+          ),
+          Container(
+            height: 50.0,
+            color: Colors.blue[50],
+            child: ListView.builder(
+              controller: _scrollController,
+              scrollDirection: Axis.horizontal,
+              itemCount: winners.length * 2, // Duplicate list for seamless loop
+              itemBuilder: (context, index) {
+                final winner = winners[index % winners.length];
+                return Container(
+                  margin: EdgeInsets.symmetric(horizontal: 8.0),
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    gradient: LinearGradient(
-                      colors: [Colors.blueAccent, Colors.lightBlueAccent],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24.0),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.blue[100]!,
+                          blurRadius: 4.0,
+                          spreadRadius: 2.0),
+                    ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.white,
-                            radius: 20,
-                            child: user?['profileImage'] != null
-                                ? ClipOval(
-                                    child: Image.network(
-                                      user!['profileImage'],
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  )
-                                : Icon(Icons.person, color: Colors.blueAccent),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              user?['username'] ?? "Unknown User",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       Text(
-                        voucher?['voucher_name'] ?? "Voucher Name",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
+                        winner.username,
+                        style: TextStyle(
+                            color: Colors.blue[800],
+                            fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(width: 8.0),
                       Text(
-                        "Product: ${voucher?['product_name'] ?? 'N/A'}",
-                        style: const TextStyle(color: Colors.white),
+                        winner.state,
+                        style: TextStyle(
+                            color: Colors.blue[800],
+                            fontWeight: FontWeight.bold),
                       ),
+                      SizedBox(width: 8.0),
                       Text(
-                        "Winning Amount: ₹${winner['winningAmount'] ?? '0'}",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.yellowAccent,
-                        ),
+                        winner.productName,
+                        style: TextStyle(
+                            color: Colors.blue[600],
+                            fontWeight: FontWeight.bold),
+                      ),
+                      SizedBox(width: 8.0),
+                      Text(
+                        '₹${winner.prize}',
+                        style: TextStyle(
+                            color: Colors.blue[600],
+                            fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

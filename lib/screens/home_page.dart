@@ -59,7 +59,10 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AdvertisementCarousel(),
-              WinnersSection(winners: Future.value([])),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: WinnersMarquee(),
+              ),
               const Padding(
                 padding: EdgeInsets.all(16.0),
                 child: Text(

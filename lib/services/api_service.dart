@@ -8,7 +8,6 @@ class ApiService {
 
   Future<List<Product>> fetchProducts() async {
     final response = await http.get(Uri.parse('$_baseUrl/user/products'));
-    
 
     if (response.statusCode == 200) {
       final decodedData = json.decode(response.body);
@@ -101,6 +100,17 @@ class ApiService {
       }
     } catch (error) {
       throw Exception("Error fetching categories: $error");
+    }
+  }
+
+  static const String baseUrl = 'https://api.brilldaddy.com/api';
+
+  static Future<List<dynamic>> fetchWinners() async {
+    final response = await http.get(Uri.parse('$baseUrl/voucher/getWinners'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch winners');
     }
   }
 }

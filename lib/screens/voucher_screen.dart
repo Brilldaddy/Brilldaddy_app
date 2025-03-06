@@ -138,7 +138,7 @@ class _VoucherPageState extends State<VoucherPage> {
           return ListView(
             padding: const EdgeInsets.all(8.0),
             children: [
-              WinnersSection(winners: Future.value([])),
+              WinnersMarquee(),
               ...vouchers.map((voucher) => _buildVoucherCard(voucher)).toList(),
             ],
           );
