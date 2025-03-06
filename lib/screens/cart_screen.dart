@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/cart.dart';
-import '../services/api_service.dart';
 import '../services/cart_services.dart';
 import '../services/wishlist.dart';
 import 'AddressSelectionScreen.dart';
@@ -29,10 +28,7 @@ class _CartScreenState extends State<CartScreen> {
     final userId = prefs.getString('userId');
     final tokenFromPrefs = prefs.getString('authToken');
 
-    print("UserID: $userId, AuthToken: $tokenFromPrefs");
-
     if (userId == null || tokenFromPrefs == null) {
-      print("User authentication details are missing.");
       setState(() => isLoading = false);
       return;
     }
@@ -41,25 +37,23 @@ class _CartScreenState extends State<CartScreen> {
 
     try {
       Cart? fetchedCart = await CartService.getCart(userId, tokenFromPrefs);
-
       if (!mounted) return;
 
       if (fetchedCart != null && fetchedCart.items.isNotEmpty) {
-        List<String> productIds =
-            fetchedCart.items.map((item) => item.product.id).toList();
-
-        List<String> fetchedImageUrls =
-            await ApiService().fetchImageUrls(productIds);
-        print("Fetched Image URLs: $fetchedImageUrls");
-        print("Product IDs: $productIds");
-
         Map<String, String> imageMap = {};
-        if (fetchedImageUrls.length == productIds.length) {
-          for (int i = 0; i < productIds.length; i++) {
-            imageMap[productIds[i]] = fetchedImageUrls[i];
+        for (var item in fetchedCart.items) {
+          print(
+              "Product ID: ${item.product.id}, Image URLs: ${item.product.imageUrls}");
+          print(
+              "Product ID: ${item.product.id}, Image URLs: ${item.product.imageIds}");
+
+          if (item.product.imageIds.isNotEmpty) {
+            imageMap[item.product.id] =
+                "https://api.brilldaddy.com/api/user/images/${item.product.imageIds[0]}";
+          } else {
+            imageMap[item.product.id] =
+                "https://dummyimage.com/150x150/cccccc/000000&text=No+Image";
           }
-        } else {
-          print("Mismatch between product IDs and image URLs");
         }
 
         setState(() {
@@ -68,7 +62,6 @@ class _CartScreenState extends State<CartScreen> {
           isLoading = false;
         });
       } else {
-        print("Cart is empty or not fetched correctly.");
         setState(() {
           cart = fetchedCart;
           isLoading = false;
@@ -194,10 +187,7 @@ class _CartScreenState extends State<CartScreen> {
                         itemBuilder: (context, index) {
                           final item = cart!.items[index];
                           String imageUrl = imageUrls[item.product.id] ??
-                              (item.product.imageUrls != null &&
-                                      item.product.imageUrls!.isNotEmpty
-                                  ? item.product.imageUrls!.first
-                                  : "https://dummyimage.com/150x150/cccccc/000000&text=No+Image");
+                              "https://dummyimage.com/150x150/cccccc/000000&text=No+Image";
 
                           print(
                               "Final Image URL for ${item.product.name}: $imageUrl");
@@ -234,6 +224,8 @@ class _CartScreenState extends State<CartScreen> {
                                         child: CachedNetworkImage(
                                           imageUrl: imageUrl,
                                           fit: BoxFit.cover,
+                                          placeholder: (context, url) =>
+                                              CircularProgressIndicator(),
                                           errorWidget: (context, url, error) =>
                                               Image.network(
                                             "https://dummyimage.com/150x150/cccccc/000000&text=No+Image",

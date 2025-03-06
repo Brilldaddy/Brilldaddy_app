@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
+// import 'auth.dart';
 import 'order_detail_screen.dart'; // Create this screen for order details
 
 const String SERVER_URL = "https://api.brilldaddy.com/api";
@@ -27,30 +27,44 @@ class _OrdersListState extends State<OrdersList> {
     fetchOrders();
   }
 
+     @override
+void dispose() {
+  super.dispose();
+}
+
   Future<void> fetchOrders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     userId = prefs.getString('userId') ?? '';
     token = prefs.getString('authToken') ?? '';
+
     try {
       final response =
           await http.get(Uri.parse('$SERVER_URL/user/orders/$userId'));
       final data = jsonDecode(response.body);
 
+      List fetchedOrders = [];
+
       if (data is List) {
-        setState(() {
-          orders = data;
-          isLoading = false;
-        });
-        fetchImages(data);
+        fetchedOrders = data;
       } else if (data is Map && data.containsKey('orders')) {
-        setState(() {
-          orders = data['orders'];
-          isLoading = false;
-        });
-        fetchImages(data['orders']);
+        fetchedOrders = data['orders'];
       } else {
         throw Exception("Unexpected response format");
       }
+
+      // Sort orders by `createdAt` in descending order (latest first)
+      fetchedOrders.sort((a, b) {
+        DateTime dateA = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime(0);
+        DateTime dateB = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime(0);
+        return dateB.compareTo(dateA); // Latest order first
+      });
+
+      setState(() {
+        orders = fetchedOrders;
+        isLoading = false;
+      });
+
+      fetchImages(fetchedOrders);
     } catch (error) {
       print("Error fetching orders: $error");
       setState(() => isLoading = false);
@@ -61,13 +75,17 @@ class _OrdersListState extends State<OrdersList> {
     Map<String, String> imageUrlsMap = {};
     for (var order in orders) {
       for (var item in order['cartItems']) {
-        String imageId = item['productId']['images'][0]
-            .toString(); // Ensure imageId is a string
+        String imageId = item['productId']['images'][0] is int
+            ? item['productId']['images'][0].toString()
+            : item['productId']['images'][0];
+
+        print("Image ID: $imageId");
         final imageResponse =
             await http.get(Uri.parse('$SERVER_URL/user/images/$imageId'));
         imageUrlsMap[imageId] = jsonDecode(imageResponse.body)['imageUrl'];
       }
     }
+    if (!mounted) return;
     setState(() => imageUrls = imageUrlsMap);
   }
 
@@ -127,53 +145,67 @@ class _OrdersListState extends State<OrdersList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Order History")),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : orders.isEmpty
-              ? Center(child: Text("No Orders Found"))
-              : ListView.builder(
-                  itemCount: orders.length,
-                  itemBuilder: (context, index) {
-                    var order = orders[index];
-                    return Column(
-                      children: order['cartItems'].map<Widget>((item) {
-                        return GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => OrderDetailsScreen(
-                                  productId: item['productId']['_id'],
-                                  id: order['_id']),
+        backgroundColor: const Color.fromARGB(255, 195, 228, 239),
+        appBar: AppBar(
+          title: Text("Order History", style: TextStyle(color: Colors.white)),
+          backgroundColor: Colors.blueAccent,
+          centerTitle: true,
+        ),
+        body: isLoading
+            ? Center(child: CircularProgressIndicator())
+            : orders.isEmpty
+                ? Center(child: Text("No Orders Found"))
+                : ListView.builder(
+                    reverse: true,
+                    itemCount: orders.length,
+                    itemBuilder: (context, index) {
+                      var order =
+                          orders[index]; // Orders already sorted, latest first
+                      return Column(
+                        children: order['cartItems'].map<Widget>((item) {
+                          return GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => OrderDetailsScreen(
+                                  productId:
+                                      item['productId']['_id'].toString(),
+                                  id: order['_id'].toString(),
+                                  orderStatus: item['status'], // Add this line
+                                ),
+                              ),
                             ),
-                          ),
-                          child: Card(
-                            margin: EdgeInsets.all(8),
-                            child: ListTile(
-                              leading: Image.network(
-                                  imageUrls[item['productId']['images'][0]] ??
-                                      '',
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover),
-                              title: Text(item['productId']['name']),
-                              subtitle: Text(
-                                  "₹${item['price']} - Qty: ${item['quantity']}"),
-                              trailing: item['status'] == "Delivered"
-                                  ? TextButton(
-                                      onPressed: () => openRatingModal(
-                                          item['productId']['_id']),
-                                      child: Text("Rate",
-                                          style: TextStyle(color: Colors.blue)),
-                                    )
-                                  : Text(item['status']),
+                            child: Card(
+                              margin: EdgeInsets.all(8),
+                              child: ListTile(
+                                leading: Image.network(
+                                    imageUrls[item['productId']['images'][0]] ??
+                                        '',
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover),
+                                title: Text(item['productId']['name']),
+                                subtitle: Text(
+                                    "₹${item['price']} - Qty: ${item['quantity']}"),
+                                trailing: item['status'] == "Delivered"
+                                    ? TextButton(
+                                        onPressed: () => openRatingModal(
+                                            item['productId']['_id']),
+                                        child: Text("Rate",
+                                            style:
+                                                TextStyle(color: Colors.blue)),
+                                      )
+                                    : Text(item['status']),
+                              ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-    );
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ));
   }
+
+
+
+
 }

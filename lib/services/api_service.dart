@@ -8,6 +8,7 @@ class ApiService {
 
   Future<List<Product>> fetchProducts() async {
     final response = await http.get(Uri.parse('$_baseUrl/user/products'));
+    
 
     if (response.statusCode == 200) {
       final decodedData = json.decode(response.body);

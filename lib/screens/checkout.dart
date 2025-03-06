@@ -24,12 +24,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String errorMessage = '';
   int quantity = 1;
   late Razorpay _razorpay;
+  final TextEditingController _contactController = TextEditingController();
+  String? razorpayOrderId; // Stores the created Razorpay order ID
 
   @override
   void initState() {
     super.initState();
     fetchUserAddresses();
-    quantity = 1;
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
@@ -39,93 +40,61 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     _razorpay.clear();
+    _contactController.dispose();
     super.dispose();
   }
 
-  Future<void> fetchUserAddresses() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = '';
-    });
-
+  Future<void> createRazorpayOrder() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId')?.trim();
       final authToken = prefs.getString('authToken')?.trim();
+      final userId = prefs.getString('userId')?.trim();
 
-      if (userId == null || authToken == null) {
-        setState(() {
-          errorMessage = "Please log in to proceed.";
-          isLoading = false;
-        });
+      if (authToken == null || userId == null) {
+        Fluttertoast.showToast(msg: "User not authenticated.");
         return;
       }
 
-      final url = Uri.parse("https://api.brilldaddy.com/api/user/addresses/$userId");
-      final response = await http.get(url, headers: {
-        'Authorization': 'Bearer $authToken',
-        'Content-Type': 'application/json',
-      });
+      double totalAmount = widget.product.salePrice * quantity;
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+      final response = await http.post(
+        Uri.parse("https://api.brilldaddy.com/api/user/checkout/createOrder"),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          "amount": totalAmount,
+          "receipt": "order_${DateTime.now().millisecondsSinceEpoch}"
+        }),
+      );
 
+      final responseData = json.decode(response.body);
+      if (response.statusCode == 200 && responseData['success']) {
         setState(() {
-          addresses = List<Map<String, dynamic>>.from(data);
-          if (addresses.isNotEmpty) {
-            selectedAddressId = addresses[0]['_id'];
-          }
+          razorpayOrderId = responseData['order']['id']; // Store order ID
         });
+        startPayment();
       } else {
-        setState(() {
-          errorMessage = "Failed to load addresses.";
-        });
+        Fluttertoast.showToast(msg: "Failed to create order.");
       }
     } catch (e) {
-      setState(() {
-        errorMessage = "An error occurred: $e";
-      });
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
+      Fluttertoast.showToast(msg: "Error: $e");
     }
   }
 
-  void increaseQuantity() {
-    setState(() {
-      quantity++;
-    });
-  }
-
-  void decreaseQuantity() {
-    if (quantity > 1) {
-      setState(() {
-        quantity--;
-      });
+  Future<void> startPayment() async {
+    if (_contactController.text.isEmpty || _contactController.text.length != 10) {
+      Fluttertoast.showToast(msg: "Please enter a valid 10-digit contact number.");
+      return;
     }
-  }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) {
-    Fluttertoast.showToast(msg: "Payment Successful: ${response.paymentId}");
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentSuccessPage(cartItems: [], userId: ''),
-      ),
-    );
-  }
+    if (razorpayOrderId == null) {
+      Fluttertoast.showToast(msg: "Order ID is missing.");
+      return;
+    }
 
-  void _handlePaymentError(PaymentFailureResponse response) {
-    Fluttertoast.showToast(msg: "Payment Failed: ${response.message}");
-  }
-
-  void _handleExternalWallet(ExternalWalletResponse response) {
-    Fluttertoast.showToast(msg: "External Wallet Used: ${response.walletName}");
-  }
-
-  void startPayment() {
-      double totalAmount = widget.product.salePrice * quantity * 100;
+    double totalAmount = widget.product.salePrice * quantity * 100;
 
     var options = {
       'key': 'rzp_test_yjMX4hSQ75uCRn',
@@ -133,10 +102,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       'currency': 'INR',
       'name': 'BRILLDADDY ECOMMERCE PVT LTD.',
       'description': 'Payment for ${widget.product.name}',
-      'prefill': {
-        'contact': '9876543210',
-        'email': 'user@example.com',
-      },
+      'order_id': razorpayOrderId, // Attach Razorpay order ID
+      'prefill': {'contact': _contactController.text, 'email': 'user@example.com'},
       'theme': {'color': '#3399cc'},
     };
 
@@ -147,7 +114,133 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  @override
+void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+  if (response.paymentId != null) {
+    Fluttertoast.showToast(msg: "Payment Successful: ${response.paymentId}");
+    await placeOrder(response.paymentId!); 
+
+  } else {
+    Fluttertoast.showToast(msg: "Payment ID is missing.");
+  }
+}
+
+
+  Future<void> placeOrder(String paymentId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId')?.trim();
+      final authToken = prefs.getString('authToken')?.trim();
+
+      if (userId == null || authToken == null) {
+        Fluttertoast.showToast(msg: "User authentication failed.");
+        return;
+      }
+
+      final url = Uri.parse("https://api.brilldaddy.com/api/user/checkout/placeorder");
+
+      final orderData = {
+        "userId": userId,
+        "cartItems": [
+          {
+            "productId": widget.product.id,
+            "quantity": quantity,
+            "price": widget.product.salePrice,
+            "size": widget.product.sizes?.isNotEmpty == true ? widget.product.sizes![0] : ""
+          }
+        ],
+        "selectedAddressId": selectedAddressId,
+        "paymentMethod": "Razorpay",
+        "paid": true
+      };
+
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $authToken",
+          "Content-Type": "application/json",
+        },
+        body: json.encode(orderData),
+      );
+
+      if (response.statusCode == 201) {
+        Fluttertoast.showToast(msg: "Order placed successfully!");
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => PaymentSuccessPage(cartItems: [], userId: userId)),
+        );
+      } else {
+        Fluttertoast.showToast(msg: "Failed to place order.");
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: "Error placing order: $e");
+    }
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    Fluttertoast.showToast(msg: "Payment Failed: ${response.message}");
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    Fluttertoast.showToast(msg: "External Wallet Used: ${response.walletName}");
+  }
+
+  Future<void> fetchUserAddresses() async {
+    setState(() { isLoading = true; errorMessage = ''; });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId')?.trim();
+      final authToken = prefs.getString('authToken')?.trim();
+
+      if (userId == null || authToken == null) {
+        setState(() { errorMessage = "Please log in to proceed."; isLoading = false; });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse("https://api.brilldaddy.com/api/user/addresses/$userId"),
+        headers: {'Authorization': 'Bearer $authToken', 'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          addresses = List<Map<String, dynamic>>.from(data);
+          if (addresses.isNotEmpty) {
+            selectedAddressId = addresses[0]['_id'];
+          }
+        });
+      } else {
+        setState(() { errorMessage = "Failed to load addresses."; });
+      }
+    } catch (e) {
+      setState(() { errorMessage = "An error occurred: $e"; });
+    } finally {
+      setState(() { isLoading = false; });
+    }
+  }
+
+  void _showContactInputDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Enter Contact Number"),
+          content: TextField(
+            controller: _contactController,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(hintText: "Enter your 10-digit phone number"),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text("Cancel")),
+            ElevatedButton(onPressed: () { Navigator.pop(context); createRazorpayOrder(); }, child: Text("Proceed")),
+          ],
+        );
+      },
+    );
+  }
+  
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -162,7 +255,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => AddressFormPage(onRefresh: fetchUserAddresses)),
+                    builder: (context) =>
+                        AddressFormPage(onRefresh: fetchUserAddresses)),
               );
             },
           )
@@ -182,6 +276,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Product Details Card
                       Card(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -252,48 +347,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                    SizedBox(height: 10),
-
-                                    // Quantity Selector
-                                    Row(
-                                      children: [
-                                        Text(
-                                          "Quantity:",
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w500),
-                                        ),
-                                        SizedBox(width: 10),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            border:
-                                                Border.all(color: Colors.grey),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(Icons.remove),
-                                                onPressed: decreaseQuantity,
-                                              ),
-                                              Text(
-                                                quantity.toString(),
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight:
-                                                        FontWeight.bold),
-                                              ),
-                                              IconButton(
-                                                icon: Icon(Icons.add),
-                                                onPressed: increaseQuantity,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
                                   ],
                                 ),
                               ),
@@ -301,9 +354,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         ),
                       ),
-
                       SizedBox(height: 20),
-                      Text("Select Address:", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+
+                      // Select Address Section
+                      Text("Select Address:",
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold)),
                       Expanded(
                         child: ListView.builder(
                           itemCount: addresses.length,
@@ -321,17 +377,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   },
                                 ),
                                 title: Text(address['userName'] ?? 'Name'),
-                                subtitle: Text("${address['flatNumber']}, ${address['street']}, ${address['state']}, ${address['pincode']}"),
+                                subtitle: Text(
+                                    "${address['flatNumber']}, ${address['street']}, ${address['state']}, ${address['pincode']}"),
                               ),
                             );
                           },
                         ),
                       ),
-                      Center(
+                      SizedBox(height: 20),
+
+                      // Proceed to Payment Button
+                      SizedBox(
+                        width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: selectedAddressId == null ? null : startPayment,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                          child: Text("Proceed to Payment"),
+                          onPressed: selectedAddressId == null
+                              ? null
+                              : _showContactInputDialog,
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent),
+                          child: Text(
+                            "Proceed to Payment",
+                            style: TextStyle(color: Colors.white),
+                          ),
                         ),
                       ),
                     ],

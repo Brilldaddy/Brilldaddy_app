@@ -76,7 +76,7 @@ class Product {
     );
   }
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toJson() {
     return {
       '_id': id,
       'name': name,

@@ -1,21 +1,26 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:pdf/widgets.dart' as pdfLib;
-import 'package:pdf/pdf.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-
-const SERVER_URL = "https://api.brilldaddy.com/api";
+import 'package:pdf/widgets.dart' as pdfLib;
+import 'package:pdf/pdf.dart';
+import 'package:brilldaddy/services/order_detial_service.dart';
+import 'package:brilldaddy/component/order_detials/cancel_order_dialog.dart';
+import 'package:brilldaddy/component/order_detials/return_order_dialog.dart';
+import 'package:brilldaddy/component/order_detials/invoice_generator.dart';
+import 'package:brilldaddy/component/order_detials/order_status_widget.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final String id;
   final String productId;
+  final String orderStatus; // Add this line to accept orderStatus
 
   OrderDetailsScreen({
     required this.id,
     required this.productId,
+    required this.orderStatus, // Add this line to accept orderStatus
   });
 
   @override
@@ -23,16 +28,18 @@ class OrderDetailsScreen extends StatefulWidget {
 }
 
 class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
-  Map<String, dynamic>? order;
   Map<String, String> imageUrls = {};
+  Map<String, dynamic>? address;
+  Map<String, dynamic>? order;
   bool isCancelButtonDisabled = false;
   bool isOrderCancelled = false;
-  bool returnButtonDisabled = false;
-  String selectedReason = "";
   TextEditingController bankAccountController = TextEditingController();
+  TextEditingController otherReasonController = TextEditingController();
   TextEditingController ifscController = TextEditingController();
   TextEditingController branchController = TextEditingController();
   TextEditingController holderNameController = TextEditingController();
+  DateTime? deliveryDate;
+  bool isReturnEligible = false;
 
   @override
   void initState() {
@@ -41,71 +48,63 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> fetchOrderDetails() async {
-  try {
-    final response = await http.get(Uri.parse('$SERVER_URL/user/order/${widget.id}'));
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+    try {
+      final data = await OrderDetailService.fetchOrderDetails(widget.id);
+      print("Order Details: $data"); // Debugging
+
       setState(() {
         order = data;
-        isOrderCancelled = data['status'] == 'Cancelled';
-        isCancelButtonDisabled = isOrderCancelled || data['status'] == 'Delivered';
+        String status = widget.orderStatus; // Use the passed orderStatus
 
-        // Ensure all values are converted to strings
-       bankAccountController.text = (data['bankDetails']['accountNumber'] ?? "").toString();
-ifscController.text = (data['bankDetails']['ifscCode'] ?? "").toString();
-branchController.text = (data['bankDetails']['branch'] ?? "").toString();
-holderNameController.text = (data['bankDetails']['accountHolderName'] ?? "").toString();
+        isOrderCancelled = status == 'Cancelled';
+        isCancelButtonDisabled = isOrderCancelled || status == 'Delivered';
+        // Assign Address Directly from 'selectedAddressId'
+        if (data.containsKey('selectedAddressId') &&
+            data['selectedAddressId'] != null) {
+          address = data['selectedAddressId']; // No need to fetch separately
+        }
+        if (data.containsKey('cartItems') && data['cartItems'].isNotEmpty) {
+          fetchImages([data]); // Pass the order as a list
+        }
 
+        // Extract delivery date
+        if (data['deliveredAt'] != null) {
+          deliveryDate = DateTime.parse(data['deliveredAt']);
+          final now = DateTime.now();
+          final difference = now.difference(deliveryDate!).inDays;
+          isReturnEligible = difference <= 7;
+        }
+        print("Order Status: $status");
+        print("Is Cancel Button Disabled: $isCancelButtonDisabled");
+
+        // Assign bank details if present
+        final bankDetails = data['bankDetails'] ?? {};
+        bankAccountController.text =
+            (bankDetails['accountNumber'] ?? "").toString();
+        ifscController.text = (bankDetails['ifscCode'] ?? "").toString();
+        branchController.text = (bankDetails['branch'] ?? "").toString();
+        holderNameController.text =
+            (bankDetails['accountHolderName'] ?? "").toString();
       });
-    }
-  } catch (e) {
-    print("Error: $e");
-  }
-}
-
-
-  Future<void> handleCancelOrder() async {
-    if (!validateBankDetails()) return;
-
-    try {
-      final response = await http.put(
-        Uri.parse('$SERVER_URL/admin/cancel-order/${order!['_id']}'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "userId": order!['userId'],
-          "orderId": order!['_id'],
-          "productId": widget.productId,
-          "cancelReason": selectedReason,
-          "bankDetails": {
-            "accountNumber": bankAccountController.text,
-            "ifscCode": ifscController.text,
-            "branch": branchController.text,
-            "accountHolderName": holderNameController.text
-          }
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        setState(() {
-          isOrderCancelled = true;
-          isCancelButtonDisabled = true;
-        });
-      }
     } catch (e) {
-      print("Error: $e");
+      print("Error fetching order details: $e");
     }
   }
 
-  bool validateBankDetails() {
-    if (bankAccountController.text.isEmpty ||
-        ifscController.text.isEmpty ||
-        branchController.text.isEmpty ||
-        holderNameController.text.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Fill in all bank details")));
-      return false;
+  Future<void> fetchImages(List orders) async {
+    Map<String, String> imageUrlsMap = {};
+    for (var order in orders) {
+      for (var item in order['cartItems']) {
+        String imageId = item['productId']['images'][0] is int
+            ? item['productId']['images'][0].toString()
+            : item['productId']['images'][0];
+
+        final imageUrl = await OrderDetailService.fetchImageUrl(imageId);
+        imageUrlsMap[imageId] = imageUrl;
+      }
     }
-    return true;
+    if (!mounted) return;
+    setState(() => imageUrls = imageUrlsMap);
   }
 
   Future<void> generateInvoice() async {
@@ -121,54 +120,193 @@ holderNameController.text = (data['bankDetails']['accountHolderName'] ?? "").toS
                       fontSize: 24, fontWeight: pdfLib.FontWeight.bold)),
               pdfLib.Text("Order ID: ${widget.id}",
                   style: pdfLib.TextStyle(fontSize: 16)),
+              // Add more details as needed
             ],
           ),
         ),
       );
-
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/Invoice_${widget.id}.pdf');
       await file.writeAsBytes(await pdf.save());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Invoice downloaded successfully.")),
+      );
     } catch (e) {
       print("Error generating PDF: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error generating invoice.")),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (order == null) return Center(child: CircularProgressIndicator());
+    if (order == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text("Order Details")),
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     return Scaffold(
-      appBar: AppBar(title: Text("Order Details")),
+      backgroundColor: const Color.fromARGB(255, 195, 228, 239),
+      appBar: AppBar(
+        title: Text("Order Details", style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.blueAccent,
+      ),
       body: SingleChildScrollView(
+        padding: EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ListView.builder(
-              shrinkWrap: true,
-              itemCount: order!['cartItems'].length,
-              itemBuilder: (context, index) {
-                final item = order!['cartItems'][index];
-                return Card(
-                  child: ListTile(
-                    title: Text(item['productId']['name']),
-                    subtitle: Text("₹${item['price']} x ${item['quantity']}"),
-                    trailing: Text(
-                        "Total: ₹${(item['price'] * item['quantity']).toStringAsFixed(2)}"),
+            Text("Order Summary",
+                style: GoogleFonts.lato(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
+            Text("Order ID: ${widget.id}", style: TextStyle(fontSize: 14)),
+            SizedBox(height: 10),
+            ...order!['cartItems']
+                .where((item) => item['productId']['_id'] == widget.productId)
+                .map<Widget>((item) {
+              return Card(
+                elevation: 4,
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: ListTile(
+                  leading: Image.network(
+                      imageUrls[item['productId']['images'][0]] ?? '',
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover),
+                  title: Text(item['productId']['name'],
+                      style: GoogleFonts.poppins(
+                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  subtitle: Text("₹${item['price']} x ${item['quantity']}",
+                      style: GoogleFonts.poppins(fontSize: 14)),
+                  trailing: Text(
+                    "Total: ₹${(item['price'] * item['quantity']).toStringAsFixed(2)}",
+                    style: GoogleFonts.robotoMono(
+                        fontSize: 14, fontWeight: FontWeight.bold),
                   ),
-                );
-              },
-            ),
-            ElevatedButton(
-              onPressed: isCancelButtonDisabled ? null : handleCancelOrder,
-              child: Text("Cancel Order"),
-            ),
-            ElevatedButton(
-              onPressed: generateInvoice,
-              child: Text("Download Invoice"),
+                ),
+              );
+            }).toList(),
+            SizedBox(height: 20),
+            OrderStatusWidget(order: order),
+            SizedBox(height: 20),
+            Text("Shipping Address",
+                style: GoogleFonts.lato(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            address != null && address!.isNotEmpty
+                ? Text(
+                    "${address!['street'] ?? 'N/A'}, "
+                    "${address!['city'] ?? 'N/A'}, "
+                    "${address!['state'] ?? 'N/A'} - "
+                    "${address!['zip'] ?? 'N/A'}",
+                    style: GoogleFonts.poppins(fontSize: 16),
+                  )
+                : Center(child: CircularProgressIndicator()),
+            SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                if (order!['orderStatus'] == 'Delivered' && isReturnEligible)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      showReturnOrderPopup();
+                      print("Returning order...");
+                    },
+                    icon: Icon(Icons.assignment_return, color: Colors.white),
+                    label: Text("Return Order",
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      padding: EdgeInsets.all(12),
+                    ),
+                  )
+                else if (order!['orderStatus'] != 'Delivered' &&
+                    !isCancelButtonDisabled)
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      showCancelOrderPopup();
+                      print("Cancelling order...");
+                    },
+                    icon: Icon(Icons.cancel, color: Colors.white),
+                    label: Text("Cancel Order",
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: EdgeInsets.all(12),
+                    ),
+                  ),
+                ElevatedButton.icon(
+                  onPressed: generateInvoice,
+                  icon: Icon(Icons.download, color: Colors.white),
+                  label: Text("Download Invoice",
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: EdgeInsets.all(12),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  void showCancelOrderPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => CancelOrderDialog(
+        orderId: widget.id,
+        userId: order!['userId'].toString(),
+        cartItems: order!['cartItems'],
+        orderDetails: order!,
+        bankAccountController: bankAccountController,
+        ifscController: ifscController,
+        branchController: branchController,
+        holderNameController: holderNameController,
+        onOrderCancelled: (bool status) {
+          setState(() {
+            isOrderCancelled = status;
+            isCancelButtonDisabled = status;
+          });
+        },
+      ),
+    );
+  }
+
+  void showReturnOrderPopup() {
+    showDialog(
+      context: context,
+      builder: (context) => ReturnOrderDialog(
+        orderId: widget.id,
+        userId: order!['userId'].toString(),
+        cartItems: order!['cartItems'],
+        orderDetails: order!,
+        bankAccountController: bankAccountController,
+        ifscController: ifscController,
+        branchController: branchController,
+        holderNameController: holderNameController,
+        onOrderReturned: (bool status) {
+          setState(() {
+            isOrderCancelled = status;
+            isCancelButtonDisabled = status;
+          });
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    bankAccountController.dispose();
+    otherReasonController.dispose();
+    ifscController.dispose();
+    branchController.dispose();
+    holderNameController.dispose();
+    super.dispose();
   }
 }

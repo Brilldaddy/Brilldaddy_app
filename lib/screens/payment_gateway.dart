@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../models/cart.dart';
@@ -48,78 +49,119 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }
 
   Future<void> handlePlaceOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final authToken = prefs.getString('authToken')?.trim();
+
+    if (authToken == null || authToken.isEmpty) {
+      _showAlert("Authentication failed. Please log in again.");
+      return;
+    }
+
     if (widget.selectedAddress.isEmpty || widget.paymentMethod.isEmpty) {
       _showAlert(
           "Please select both an address and a payment method before placing the order.");
       return;
     }
 
+    int amountInPaise =
+        (widget.total).toInt(); // ✅ Correct, convert INR to paise
+
+    print("Total in INR: ${widget.total}, Amount in paise: $amountInPaise");
+
+    if (amountInPaise <= 0) {
+      _showAlert("Invalid order amount. Please check your cart.");
+      return;
+    }
+
     if (widget.paymentMethod == "Razorpay") {
       try {
+        print("Amount being sent to Razorpay: $amountInPaise paise");
+
         var response = await http.post(
-          Uri.parse("https://api.brilldaddy.com/api/user/checkout/createOrder"),
+          Uri.parse("${widget.serverUrl}/user/checkout/createOrder"),
           body: jsonEncode({
-            "amount": widget.total * 100, // Convert to paise
+            "amount": amountInPaise, // ✅ Ensure amount is in paise
             "receipt": "receipt_${DateTime.now().millisecondsSinceEpoch}",
           }),
-          headers: {"Content-Type": "application/json"},
+          headers: {
+            "Content-Type": "application/json",
+            'Authorization': 'Bearer $authToken',
+          },
         );
+        print(response.statusCode);
+        print(response.body);
 
-        var responseData = jsonDecode(response.body);
-        print("Response Data: $responseData");
-        print("Total Amount: ${widget.total}");
-        print("Converted Amount (Paise): ${widget.total * 100}");
+        if (response.statusCode == 200) {
+          var responseData = jsonDecode(response.body);
 
-        if (response.statusCode == 200 && responseData['success']) {
-          // Convert cart items to a string format for notes
-          List<String> productDetails = widget.cartItems.map((item) {
-            return "${item['product']['name']} (x${item['quantity']}) - ₹${item['price'] * item['quantity']}";
-          }).toList();
+          if (responseData['success'] && responseData['order'] != null) {
+            var options = {
+              'key': "rzp_test_yjMX4hSQ75uCRn",
+              'amount': amountInPaise, // ✅ Ensure amount is in paise
+              'currency': 'INR',
+              'name': "BRILLDADDY ECOMMERCE PVT LTD.",
+              'description': "Order Payment",
+              'order_id': responseData['order']['id'],
+              'prefill': {
+                'name': widget.user['name'],
+                'email': widget.user['email'],
+                'contact': widget.user['phone'],
+              },
+              'notes': {
+                'address': widget.selectedAddress['addressLine'],
+                'products': widget.cartItems.map((item) {
+                  if (item is CartItem) {
+                    return "${item.product.name} (x${item.quantity})";
+                  } else if (item is Map<String, dynamic>) {
+                    return "${item['product']['name']} (x${item['quantity']})";
+                  }
+                }).join(", "),
+              },
+              'theme': {'color': "#3399cc"},
+            };
 
-          var options = {
-            'key':
-                "rzp_test_yjMX4hSQ75uCRn", // Replace with actual Razorpay Key ID
-            'amount': widget.total,
-            'currency': responseData['order']['currency'],
-            'name': "BRILLDADDY ECOMMERCE PVT LTD.",
-            'description': "Order Payment",
-            'order_id': responseData['order']['id'],
-            'prefill': {
-              'name': widget.user['name'],
-              'email': widget.user['email'],
-              'contact': widget.user['phone'],
-            },
-            'notes': {
-              'address': widget.selectedAddress['addressLine'],
-              'products': productDetails.join(", "), // Add product details
-            },
-            'theme': {
-              'color': "#3399cc",
-            }
-          };
-
-          _razorpay.open(options);
+            _razorpay.open(options);
+          } else {
+            _showAlert(
+                "Error while creating order. Server response: ${response.body}");
+          }
+        } else if (response.statusCode == 500) {
+          _showAlert(
+              "Server error occurred. Please try again later or contact support.");
+          await _placeOrder(paid: false, orderStatus: "Pending");
         } else {
-          _showAlert("Error while creating order. Please try again.");
+          var responseData = jsonDecode(response.body);
+          _showAlert(
+              "Payment initialization error: ${responseData['message']}");
         }
       } catch (e) {
-        _showAlert("Payment failed: $e");
+        _showAlert("Payment initialization error: $e");
+        await _placeOrder(paid: false, orderStatus: "Pending");
       }
     } else {
-      // Handle Cash on Delivery (COD)
       await _placeOrder(paid: false, orderStatus: "Pending");
     }
   }
 
   Future<void> _placeOrder(
       {required bool paid, required String orderStatus}) async {
+    int amountInPaise = (widget.total).toInt();
+
     try {
       var response = await http.post(
-        Uri.parse("https://api.brilldaddy.com/api/user/checkout/placeorder"),
+        Uri.parse("${widget.serverUrl}/user/checkout/placeorder"),
         body: jsonEncode({
           "userId": widget.userId,
-          "amount": widget.total,
-          "cartItems": widget.cartItems,
+          "amount": amountInPaise,
+          "cartItems": widget.cartItems.map((item) {
+            if (item is CartItem) {
+              return item.toJson(); // Ensure `toJson()` returns a valid map
+            } else if (item is Map<String, dynamic>) {
+              return item; // Already a map, return directly
+            } else {
+              throw Exception("Invalid cart item type: ${item.runtimeType}");
+            }
+          }).toList(),
           "selectedAddressId": widget.selectedAddress['_id'],
           "paymentMethod": widget.paymentMethod,
           "paid": paid,
@@ -127,23 +169,34 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         }),
         headers: {"Content-Type": "application/json"},
       );
+      print('status code is: ${response.statusCode}');
+      print('Response is: ${response.body}');
 
       if (response.statusCode == 200) {
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => PaymentSuccessPage(
-              cartItems: widget.cartItems
-                  .map((item) => CartItem.fromJson(item))
-                  .toList(),
+              cartItems: widget.cartItems.map((item) {
+                if (item is Map<String, dynamic>) {
+                  return CartItem.fromJson(item);
+                } else if (item is CartItem) {
+                  return item;
+                } else {
+                  throw Exception(
+                      "Invalid cart item type: ${item.runtimeType}");
+                }
+              }).toList(),
               userId: widget.userId,
             ),
           ),
         );
       } else {
-        _showAlert("Order placement failed. Please try again.");
+        print("Order placement failed. Response: ${response.body}");
+        _showAlert("Order placement failed. Response: ${response.body}");
       }
     } catch (e) {
+      print("Error placing order: $e");
       _showAlert("Error placing order: $e");
     }
   }
@@ -151,7 +204,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   void _handlePaymentSuccess(PaymentSuccessResponse response) async {
     try {
       var verifyResponse = await http.post(
-        Uri.parse("https://api.brilldaddy.com/api/user/checkout/verifyPayment"),
+        Uri.parse("${widget.serverUrl}/user/checkout/verifyPayment"),
         body: jsonEncode({
           "razorpay_order_id": response.orderId,
           "razorpay_payment_id": response.paymentId,
@@ -164,7 +217,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       if (verifyData['success']) {
         await _placeOrder(paid: true, orderStatus: "Paid");
       } else {
-        _showAlert("Payment verification failed. Please try again.");
+        _showAlert(
+            "Payment verification failed. Response: ${verifyResponse.body}");
       }
     } catch (e) {
       _showAlert("Error verifying payment: $e");
@@ -172,7 +226,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    _showAlert("Payment failed: ${response.message}");
+    _showAlert("Payment failed: ${response.message} (Code: ${response.code})");
+    _placeOrder(paid: false, orderStatus: "Pending");
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
@@ -194,7 +249,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -225,22 +280,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                   var item = widget.cartItems[index];
 
                   if (item is! CartItem) {
-                    item = CartItem.fromJson(
-                        item); // Convert JSON map to CartItem object
+                    item = CartItem.fromJson(item as Map<String, dynamic>);
                   }
 
                   return Card(
                     margin: EdgeInsets.symmetric(vertical: 5),
                     child: ListTile(
                       title: Text(item.product.name,
-                          style: TextStyle(
-                              fontWeight:
-                                  FontWeight.bold)), // Access product name
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (item.product.sizes != null)
-                            Text("Quantity: ${item.quantity}"),
+                          Text("Quantity: ${item.quantity}"),
                           Text("Price: ₹${item.price * item.quantity}"),
                         ],
                       ),
@@ -249,6 +300,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                 },
               ),
             ),
+
             // Divider(),
 
             SizedBox(height: 10),

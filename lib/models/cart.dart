@@ -48,4 +48,16 @@ final String? size;
       size: json['size']
     );
   }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'product': product.toJson(), // Assuming Product has `toMap()`
+      'quantity': quantity,
+      'price': price,
+      'walletDiscountApplied': walletDiscountApplied,
+      'walletDiscountAmount': walletDiscountAmount,
+      'status': status,
+      'size': size,
+    };
+  }
 }

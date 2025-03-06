@@ -54,17 +54,12 @@ class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
     setState(() {
       isLoading = true;
     });
-    print("Shipping address page uid: $userId");
-    print("Shipping address page token: $token");
 
     try {
       final response = await http.get(
         Uri.parse('$SERVER_URL/user/addresses/$userId'),
         headers: {'Authorization': 'Bearer $token'},
       );
-
-      print('Response Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         setState(() {

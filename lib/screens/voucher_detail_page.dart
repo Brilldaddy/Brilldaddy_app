@@ -29,15 +29,15 @@ class _EventDetailPageState extends State<EventDetailPage> {
   String errorMessage = "";
   String token = "";
   bool confirmEnabled = false;
-  late double maxBidAmount;
   final double minBidAmount = 0.1;
+  late TextEditingController _bidController;
 
   @override
   void initState() {
     super.initState();
-    maxBidAmount = widget.voucher.productPrice.toDouble();
     loadUserData();
     fetchWinners();
+    _bidController = TextEditingController(text: bidAmount.toStringAsFixed(1));
   }
 
   Future<void> loadUserData() async {
@@ -61,7 +61,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   void handleBid() {
-    if (bidAmount < 0.1 || bidAmount > maxBidAmount) {
+    if (bidAmount < 0.1) {
       setState(() {
         errorMessage = "Bid amount must be between 0.1 and \$maxBidAmount";
       });
@@ -72,6 +72,13 @@ class _EventDetailPageState extends State<EventDetailPage> {
       bidId = uniqueId;
       confirmEnabled = true;
       errorMessage = "";
+    });
+  }
+
+  void updateBidAmount(double value) {
+    setState(() {
+      bidAmount = double.parse(value.toStringAsFixed(1));
+      _bidController.text = bidAmount.toStringAsFixed(1);
     });
   }
 
@@ -142,8 +149,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 // TextField with Decimal Control
                 Expanded(
                   child: TextField(
-                    controller: TextEditingController(
-                        text: bidAmount.toStringAsFixed(1)),
+                    controller: _bidController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     textAlign: TextAlign.center,
@@ -153,12 +159,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     ),
                     onChanged: (value) {
                       final parsedValue = double.tryParse(value);
-                      if (parsedValue != null &&
-                          parsedValue >= minBidAmount &&
-                          parsedValue <= maxBidAmount) {
+                      if (parsedValue != null && parsedValue >= minBidAmount) {
                         setState(() {
-                          bidAmount =
-                              double.parse(parsedValue.toStringAsFixed(1));
+                          bidAmount = parsedValue;
                         });
                       }
                     },
@@ -169,10 +172,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 IconButton(
                   onPressed: () {
                     setState(() {
-                      if (bidAmount < maxBidAmount) {
-                        bidAmount =
-                            double.parse((bidAmount + 0.1).toStringAsFixed(1));
-                      }
+                      bidAmount =
+                          double.parse((bidAmount + 0.1).toStringAsFixed(1));
                     });
                   },
                   icon: const Icon(Icons.add_circle, color: Colors.green),
@@ -247,22 +248,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title Section with Icon
-                  Row(
-                    children: const [
-                      SizedBox(width: 10),
-                      Text(
-                        "🏆 Winners 🏆",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(thickness: 1.5, color: Colors.grey),
-
+                  
                   // Winners List
                   ListView.separated(
                     shrinkWrap: true,
@@ -388,18 +374,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Price: ₹${widget.voucher.productPrice}",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -423,7 +397,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              _buildWinnersSection(),
               _buildVoucherCard(),
               _buildBidSection(),
             ],
