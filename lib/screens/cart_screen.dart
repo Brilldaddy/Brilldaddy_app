@@ -42,14 +42,12 @@ class _CartScreenState extends State<CartScreen> {
       if (fetchedCart != null && fetchedCart.items.isNotEmpty) {
         Map<String, String> imageMap = {};
         for (var item in fetchedCart.items) {
-          print(
-              "Product ID: ${item.product.id}, Image URLs: ${item.product.imageUrls}");
-          print(
-              "Product ID: ${item.product.id}, Image URLs: ${item.product.imageIds}");
+          print("Product ID: ${item.product.id}, Image URLs: ${item.product.imageUrls}");
+          print("Product ID: ${item.product.id}, Image URLs: ${item.product.imageIds}");
 
-          if (item.product.imageIds.isNotEmpty) {
-            imageMap[item.product.id] =
-                "https://api.brilldaddy.com/api/user/images/${item.product.imageIds[0]}";
+          if (item.product.imageIds != null && item.product.imageIds.isNotEmpty) {
+            final imageUrl = await CartService.fetchImageUrl(item.product.imageIds[0]);
+            imageMap[item.product.id] = imageUrl;
           } else {
             imageMap[item.product.id] =
                 "https://dummyimage.com/150x150/cccccc/000000&text=No+Image";
