@@ -109,27 +109,14 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Future<void> generateInvoice() async {
     try {
-      final pdf = pdfLib.Document();
-      pdf.addPage(
-        pdfLib.Page(
-          build: (context) => pdfLib.Column(
-            crossAxisAlignment: pdfLib.CrossAxisAlignment.start,
-            children: [
-              pdfLib.Text("Invoice",
-                  style: pdfLib.TextStyle(
-                      fontSize: 24, fontWeight: pdfLib.FontWeight.bold)),
-              pdfLib.Text("Order ID: ${widget.id}",
-                  style: pdfLib.TextStyle(fontSize: 16)),
-              // Add more details as needed
-            ],
-          ),
-        ),
-      );
-      final directory = await getApplicationDocumentsDirectory();
-      final file = File('${directory.path}/Invoice_${widget.id}.pdf');
-      await file.writeAsBytes(await pdf.save());
+      final invoiceGenerator = InvoiceGenerator();
+      final orderData =
+          await OrderDetailService.fetchOrderDetailsForInvoice(widget.id);
+      final file =
+          await invoiceGenerator.generateAndSaveInvoice(widget.id, orderData);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Invoice downloaded successfully.")),
+        SnackBar(
+            content: Text("Invoice downloaded successfully to ${file.path}.")),
       );
     } catch (e) {
       print("Error generating PDF: $e");

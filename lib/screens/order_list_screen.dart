@@ -27,10 +27,10 @@ class _OrdersListState extends State<OrdersList> {
     fetchOrders();
   }
 
-     @override
-void dispose() {
-  super.dispose();
-}
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   Future<void> fetchOrders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -145,67 +145,61 @@ void dispose() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color.fromARGB(255, 195, 228, 239),
-        appBar: AppBar(
-          title: Text("Order History", style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.blueAccent,
-          centerTitle: true,
-        ),
-        body: isLoading
-            ? Center(child: CircularProgressIndicator())
-            : orders.isEmpty
-                ? Center(child: Text("No Orders Found"))
-                : ListView.builder(
-                    reverse: true,
-                    itemCount: orders.length,
-                    itemBuilder: (context, index) {
-                      var order =
-                          orders[index]; // Orders already sorted, latest first
-                      return Column(
-                        children: order['cartItems'].map<Widget>((item) {
-                          return GestureDetector(
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => OrderDetailsScreen(
-                                  productId:
-                                      item['productId']['_id'].toString(),
-                                  id: order['_id'].toString(),
-                                  orderStatus: item['status'], // Add this line
-                                ),
+      backgroundColor: const Color.fromARGB(255, 195, 228, 239),
+      appBar: AppBar(
+        title: Text("Order History", style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.blueAccent,
+        centerTitle: true,
+      ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : orders.isEmpty
+              ? Center(child: Text("No Orders Found"))
+              : ListView.builder(
+                  itemCount: orders.length,
+                  itemBuilder: (context, index) {
+                    var order =
+                        orders[orders.length - 1 - index]; // Reverse the order
+                    return Column(
+                      children: order['cartItems'].map<Widget>((item) {
+                        return GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderDetailsScreen(
+                                productId: item['productId']['_id'].toString(),
+                                id: order['_id'].toString(),
+                                orderStatus: item['status'], // Add this line
                               ),
                             ),
-                            child: Card(
-                              margin: EdgeInsets.all(8),
-                              child: ListTile(
-                                leading: Image.network(
-                                    imageUrls[item['productId']['images'][0]] ??
-                                        '',
-                                    width: 50,
-                                    height: 50,
-                                    fit: BoxFit.cover),
-                                title: Text(item['productId']['name']),
-                                subtitle: Text(
-                                    "₹${item['price']} - Qty: ${item['quantity']}"),
-                                trailing: item['status'] == "Delivered"
-                                    ? TextButton(
-                                        onPressed: () => openRatingModal(
-                                            item['productId']['_id']),
-                                        child: Text("Rate",
-                                            style:
-                                                TextStyle(color: Colors.blue)),
-                                      )
-                                    : Text(item['status']),
-                              ),
+                          ),
+                          child: Card(
+                            margin: EdgeInsets.all(8),
+                            child: ListTile(
+                              leading: Image.network(
+                                  imageUrls[item['productId']['images'][0]] ??
+                                      '',
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover),
+                              title: Text(item['productId']['name']),
+                              subtitle: Text(
+                                  "₹${item['price']} - Qty: ${item['quantity']}"),
+                              trailing: item['status'] == "Delivered"
+                                  ? TextButton(
+                                      onPressed: () => openRatingModal(
+                                          item['productId']['_id']),
+                                      child: Text("Rate",
+                                          style: TextStyle(color: Colors.blue)),
+                                    )
+                                  : Text(item['status']),
                             ),
-                          );
-                        }).toList(),
-                      );
-                    },
-                  ));
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+    );
   }
-
-
-
-
 }
