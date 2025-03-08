@@ -77,7 +77,7 @@ class OrderDetailService {
   static Future<Map<String, dynamic>> fetchOrderDetailsForInvoice(
       String orderId) async {
     final response =
-        await http.get(Uri.parse('$SERVER_URL/admin/order/$orderId'));
+        await http.get(Uri.parse('$SERVER_URL/user/order/$orderId'));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
