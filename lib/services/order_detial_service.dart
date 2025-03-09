@@ -71,7 +71,11 @@ class OrderDetailService {
       body: jsonEncode(requestBody),
     );
 
-    return response.statusCode == 200;
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      throw Exception('Failed to cancel order: ${response.body}');
+    }
   }
 
   static Future<Map<String, dynamic>> fetchOrderDetailsForInvoice(

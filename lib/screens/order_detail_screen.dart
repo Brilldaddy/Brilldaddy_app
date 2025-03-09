@@ -126,6 +126,44 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     }
   }
 
+  Future<void> cancelOrder() async {
+    try {
+      final success = await OrderDetailService.cancelOrder(
+        widget.id,
+        order!['userId'].toString(),
+        widget.productId,
+        otherReasonController.text,
+        {
+          "accountNumber": bankAccountController.text,
+          "ifscCode": ifscController.text,
+          "branch": branchController.text,
+          "accountHolderName": holderNameController.text,
+        },
+        order!,
+      );
+
+      if (success) {
+        setState(() {
+          isOrderCancelled = true;
+          isCancelButtonDisabled = true;
+          order!['orderStatus'] = 'Cancelled';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Order cancelled successfully.")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed to cancel order.")),
+        );
+      }
+    } catch (e) {
+      print("Error cancelling order: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error cancelling order.")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (order == null) {
@@ -259,6 +297,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           setState(() {
             isOrderCancelled = status;
             isCancelButtonDisabled = status;
+            order!['orderStatus'] = 'Cancelled';
           });
         },
       ),
