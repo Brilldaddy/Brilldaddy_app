@@ -176,7 +176,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 195, 228, 239),
       appBar: AppBar(
-        title: Text("Order Details", style: TextStyle(color: Colors.white)),
+        title: Text("Order Details ", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.blueAccent,
       ),
       body: SingleChildScrollView(
@@ -195,27 +195,32 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               return Card(
                 elevation: 4,
                 margin: EdgeInsets.symmetric(vertical: 8),
-                child: ListTile(
-                  leading: Image.network(
-                      imageUrls[item['productId']['images'][0]] ?? '',
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover),
-                  title: Text(item['productId']['name'],
-                      style: GoogleFonts.poppins(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
-                  subtitle: Text("₹${item['price']} x ${item['quantity']}",
-                      style: GoogleFonts.poppins(fontSize: 14)),
-                  trailing: Text(
-                    "Total: ₹${(item['price'] * item['quantity']).toStringAsFixed(2)}",
-                    style: GoogleFonts.robotoMono(
-                        fontSize: 14, fontWeight: FontWeight.bold),
-                  ),
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: Image.network(
+                          imageUrls[item['productId']['images'][0]] ?? 'https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=1024x1024&w=is&k=20&c=5aen6wD1rsiMZSaVeJ9BWM4GGh5LE_9h97haNpUQN5I=',
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover),
+                      title: Text(item['productId']['name'],
+                          style: GoogleFonts.poppins(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                      subtitle: Text("₹${item['price']} x ${item['quantity']}",
+                          style: GoogleFonts.poppins(fontSize: 14)),
+                      trailing: Text(
+                        "Total: ₹${(item['price'] * item['quantity']).toStringAsFixed(2)}",
+                        style: GoogleFonts.robotoMono(
+                            fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    OrderStatusWidget (order: item)
+                  ],
                 ),
               );
             }).toList(),
             SizedBox(height: 20),
-            OrderStatusWidget(order: order),
+
             SizedBox(height: 20),
             Text("Shipping Address",
                 style: GoogleFonts.lato(
