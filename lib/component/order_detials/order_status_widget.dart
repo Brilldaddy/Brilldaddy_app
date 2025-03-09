@@ -24,17 +24,17 @@ class OrderStatusWidget extends StatelessWidget {
       {
         "label": "Shipped",
         "icon": FontAwesomeIcons.truck,
-        "color": Colors.orange
+        "color": Colors.blue
       },
       {
         "label": "Out for Delivery",
         "icon": FontAwesomeIcons.truckMoving,
-        "color": Colors.purple
+        "color": Colors.blue
       },
       {
         "label": "Delivered",
         "icon": FontAwesomeIcons.checkCircle,
-        "color": Colors.green
+        "color": Colors.blue
       },
     ];
 

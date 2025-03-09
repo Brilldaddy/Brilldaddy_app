@@ -38,7 +38,8 @@ class _OrdersListState extends State<OrdersList> {
     token = prefs.getString('authToken') ?? '';
 
     try {
-      final response = await http.get(Uri.parse('$SERVER_URL/user/orders/$userId'));
+      final response =
+          await http.get(Uri.parse('$SERVER_URL/user/orders/$userId'));
       final data = jsonDecode(response.body);
       print(data);
 
@@ -98,18 +99,23 @@ class _OrdersListState extends State<OrdersList> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Rate this product"),
-        content: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(5, (index) {
-            return IconButton(
-              icon: Icon(
-                Icons.star,
-                color:
-                    index < (selectedRating ?? 0) ? Colors.yellow : Colors.grey,
-              ),
-              onPressed: () => setState(() => selectedRating = index + 1),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(5, (index) {
+                return IconButton(
+                  icon: Icon(
+                    Icons.star,
+                    color: index < (selectedRating ?? 0)
+                        ? Color.fromRGBO(234, 179, 8, 1.0)
+                        : Colors.grey,
+                  ),
+                  onPressed: () => setState(() => selectedRating = index + 1),
+                );
+              }),
             );
-          }),
+          },
         ),
         actions: [
           TextButton(
@@ -128,7 +134,7 @@ class _OrdersListState extends State<OrdersList> {
         Uri.parse('$SERVER_URL/user/rate-product'),
         body: jsonEncode({
           'productId': selectedProduct,
-          'userId': 'USER_ID',
+          'userId': userId, // Use the correct userId
           'rating': selectedRating,
         }),
         headers: {'Content-Type': 'application/json'},
@@ -177,7 +183,8 @@ class _OrdersListState extends State<OrdersList> {
                             margin: EdgeInsets.all(8),
                             child: ListTile(
                               leading: Image.network(
-                                imageUrls[item['productId']['images'][0]] ?? 'https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=1024x1024&w=is&k=20&c=5aen6wD1rsiMZSaVeJ9BWM4GGh5LE_9h97haNpUQN5I=',
+                                imageUrls[item['productId']['images'][0]] ??
+                                    'https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=1024x1024&w=is&k=20&c=5aen6wD1rsiMZSaVeJ9BWM4GGh5LE_9h97haNpUQN5I=',
                                 width: 50,
                                 height: 50,
                                 fit: BoxFit.cover,

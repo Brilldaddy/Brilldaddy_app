@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../models/cart.dart';
+import '../services/cart_services.dart';
 import 'payment_success.dart';
 
 class PaymentMethodScreen extends StatefulWidget {
@@ -148,12 +149,11 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     int amountInPaise = (widget.total).toInt();
 
     try {
-
       var cartItemsJson = widget.cartItems.map((item) {
         return {
           "productId": {
             "averageRating": item.product.averageRating ?? 0,
-            "_id":  item.product.id ?? '',
+            "_id": item.product.id ?? '',
             "name": item.product.name ?? '',
           },
           "price": item.price ?? 0,
@@ -168,13 +168,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       var reqBody = {
         "userId": widget.userId,
         "total": amountInPaise,
-        "cartItems":cartItemsJson,
+        "cartItems": cartItemsJson,
         "orderStatus": orderStatus,
         "paid": paid,
         "paymentMethod": widget.paymentMethod,
         "selectedAddressId": widget.selectedAddress['_id'],
       };
-
 
       var response = await http.post(
         Uri.parse("${widget.serverUrl}/user/checkout/placeorder"),
@@ -185,6 +184,9 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       print('Response is: ${response.body}');
 
       if (response.statusCode == 201) {
+        // Clear the cart after successful order placement
+        await CartService.clearCart();
+
         Navigator.push(
           context,
           MaterialPageRoute(
