@@ -76,7 +76,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     if (widget.paymentMethod == "Razorpay") {
       try {
         print("Amount being sent to Razorpay: $amountInPaise paise");
-
+        print("${widget.serverUrl}/user/checkout/createOrder");
         var response = await http.post(
           Uri.parse("${widget.serverUrl}/user/checkout/createOrder"),
           body: jsonEncode({
@@ -148,31 +148,43 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     int amountInPaise = (widget.total).toInt();
 
     try {
+
+      var cartItemsJson = widget.cartItems.map((item) {
+        return {
+          "productId": {
+            "averageRating": item.product.averageRating ?? 0,
+            "_id":  item.product.id ?? '',
+            "name": item.product.name ?? '',
+          },
+          "price": item.price ?? 0,
+          "quantity": item.quantity ?? 1,
+          "size": item.size ?? 'N/A',
+          "walletDiscountAmount": item.walletDiscountAmount ?? 0,
+          "walletDiscountApplied": item.walletDiscountApplied ?? false,
+          "_id": '',
+        };
+      }).toList();
+
+      var reqBody = {
+        "userId": widget.userId,
+        "total": amountInPaise,
+        "cartItems":cartItemsJson,
+        "orderStatus": orderStatus,
+        "paid": paid,
+        "paymentMethod": widget.paymentMethod,
+        "selectedAddressId": widget.selectedAddress['_id'],
+      };
+
+
       var response = await http.post(
         Uri.parse("${widget.serverUrl}/user/checkout/placeorder"),
-        body: jsonEncode({
-          "userId": widget.userId,
-          "amount": amountInPaise,
-          "cartItems": widget.cartItems.map((item) {
-            if (item is CartItem) {
-              return item.toJson(); // Ensure `toJson()` returns a valid map
-            } else if (item is Map<String, dynamic>) {
-              return item; // Already a map, return directly
-            } else {
-              throw Exception("Invalid cart item type: ${item.runtimeType}");
-            }
-          }).toList(),
-          "selectedAddressId": widget.selectedAddress['_id'],
-          "paymentMethod": widget.paymentMethod,
-          "paid": paid,
-          "orderStatus": orderStatus,
-        }),
+        body: jsonEncode(reqBody),
         headers: {"Content-Type": "application/json"},
       );
       print('status code is: ${response.statusCode}');
       print('Response is: ${response.body}');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         Navigator.push(
           context,
           MaterialPageRoute(
