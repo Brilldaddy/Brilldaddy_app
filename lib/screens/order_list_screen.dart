@@ -38,9 +38,9 @@ class _OrdersListState extends State<OrdersList> {
     token = prefs.getString('authToken') ?? '';
 
     try {
-      final response =
-          await http.get(Uri.parse('$SERVER_URL/user/orders/$userId'));
+      final response = await http.get(Uri.parse('$SERVER_URL/user/orders/$userId'));
       final data = jsonDecode(response.body);
+      print(data);
 
       List fetchedOrders = [];
 
@@ -177,11 +177,19 @@ class _OrdersListState extends State<OrdersList> {
                             margin: EdgeInsets.all(8),
                             child: ListTile(
                               leading: Image.network(
-                                  imageUrls[item['productId']['images'][0]] ??
-                                      '',
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover),
+                                imageUrls[item['productId']['images'][0]] ?? 'https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=1024x1024&w=is&k=20&c=5aen6wD1rsiMZSaVeJ9BWM4GGh5LE_9h97haNpUQN5I=',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    'assets/images/default_image.png', // Provide a local default image
+                                    width: 50,
+                                    height: 50,
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                              ),
                               title: Text(item['productId']['name']),
                               subtitle: Text(
                                   "₹${item['price']} - Qty: ${item['quantity']}"),

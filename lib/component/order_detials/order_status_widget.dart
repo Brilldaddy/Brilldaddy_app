@@ -9,11 +9,11 @@ class OrderStatusWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (order == null || order!['orderStatus'] == null) {
+    if (order == null || order!['status'] == null) {
       return SizedBox(); // Return an empty widget if order data is missing
     }
 
-    String status = order!['orderStatus'].toString().toLowerCase().trim();
+    String status = order!['status'].toString().toLowerCase().trim();
 
     List<Map<String, dynamic>> statuses = [
       {
@@ -76,13 +76,13 @@ class OrderStatusWidget extends StatelessWidget {
                   alignment: Alignment.center,
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
                         color: isCompleted ? stage['color'] : Colors.grey[300],
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(stage['icon'], color: Colors.white, size: 24),
+                      child: Icon(stage['icon'], color: Colors.white, size: 16),
                     ),
                     if (stageIndex < statuses.length - 1)
                       Positioned(
@@ -101,7 +101,7 @@ class OrderStatusWidget extends StatelessWidget {
                 Text(
                   stage['label'],
                   style: GoogleFonts.poppins(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.w500,
                       color: isCompleted ? stage['color'] : Colors.grey),
                 ),
