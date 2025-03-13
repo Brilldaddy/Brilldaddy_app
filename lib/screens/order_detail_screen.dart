@@ -239,7 +239,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                if (order!['orderStatus'] == 'Delivered' && isReturnEligible)
+                if (order!['orderStatus'] == 'Delivered' && !isReturnEligible)
                   ElevatedButton.icon(
                     onPressed: () {
                       showReturnOrderPopup();
