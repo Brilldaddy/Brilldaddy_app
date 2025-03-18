@@ -70,7 +70,7 @@ class OrderDetailService {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(requestBody),
     );
-
+    print(response.toString());
     if (response.statusCode == 200) {
       return true;
     } else {
