@@ -44,6 +44,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    print("Product id: ${widget.productId}");
     fetchOrderDetails();
   }
 
@@ -73,9 +74,13 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
           final now = DateTime.now();
           final difference = now.difference(deliveryDate!).inDays;
           isReturnEligible = difference <= 7;
+          print("Delivery Date: $deliveryDate");
+          print("Days Difference: $difference");
+          print("Is Return Eligible: $isReturnEligible");
         }
         print("Order Status: $status");
         print("Is Cancel Button Disabled: $isCancelButtonDisabled");
+        print("Is return Button Disabled: $isReturnEligible");
 
         // Assign bank details if present
         final bankDetails = data['bankDetails'] ?? {};
@@ -199,7 +204,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   children: [
                     ListTile(
                       leading: Image.network(
-                          imageUrls[item['productId']['images'][0]] ?? 'https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=1024x1024&w=is&k=20&c=5aen6wD1rsiMZSaVeJ9BWM4GGh5LE_9h97haNpUQN5I=',
+                          imageUrls[item['productId']['images'][0]] ??
+                              'https://media.istockphoto.com/id/1147544807/vector/thumbnail-image-vector-graphic.jpg?s=1024x1024&w=is&k=20&c=5aen6wD1rsiMZSaVeJ9BWM4GGh5LE_9h97haNpUQN5I=',
                           width: 50,
                           height: 50,
                           fit: BoxFit.cover),
@@ -214,13 +220,12 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                             fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    OrderStatusWidget (order: item)
+                    OrderStatusWidget(order: item)
                   ],
                 ),
               );
             }).toList(),
             SizedBox(height: 20),
-
             SizedBox(height: 20),
             Text("Shipping Address",
                 style: GoogleFonts.lato(
@@ -239,7 +244,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                if (order!['orderStatus'] == 'Delivered' && !isReturnEligible)
+                if (order!['orderStatus'] == 'Delivered' && isReturnEligible)
                   ElevatedButton.icon(
                     onPressed: () {
                       showReturnOrderPopup();
@@ -291,6 +296,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       context: context,
       builder: (context) => CancelOrderDialog(
         orderId: widget.id,
+        productId: widget.productId,
         userId: order!['userId'].toString(),
         cartItems: order!['cartItems'],
         orderDetails: order!,
@@ -314,6 +320,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
       context: context,
       builder: (context) => ReturnOrderDialog(
         orderId: widget.id,
+        productId: widget.productId,
         userId: order!['userId'].toString(),
         cartItems: order!['cartItems'],
         orderDetails: order!,

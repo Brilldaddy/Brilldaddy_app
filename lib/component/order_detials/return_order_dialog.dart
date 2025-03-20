@@ -3,6 +3,7 @@ import '../../services/order_detial_service.dart';
 
 class ReturnOrderDialog extends StatefulWidget {
   final String orderId;
+  final String productId;
   final String userId;
   final List<dynamic> cartItems;
   final Map<String, dynamic> orderDetails;
@@ -14,6 +15,7 @@ class ReturnOrderDialog extends StatefulWidget {
 
   ReturnOrderDialog({
     required this.orderId,
+    required this.productId,
     required this.userId,
     required this.cartItems,
     required this.orderDetails,
@@ -143,16 +145,6 @@ class _ReturnOrderDialogState extends State<ReturnOrderDialog> {
       );
       return;
     }
-
-    // Extract productId from cart items
-    String productId = widget.cartItems.isNotEmpty &&
-            widget.cartItems[0].containsKey('productId')
-        ? (widget.cartItems[0]['productId'] is Map &&
-                widget.cartItems[0]['productId'].containsKey('_id')
-            ? widget.cartItems[0]['productId']['_id']
-            : '')
-        : '';
-
     // Final reason
     String finalReason = selectedReason == "Other"
         ? (otherReason.isNotEmpty ? otherReason : "No reason specified")
@@ -163,7 +155,7 @@ class _ReturnOrderDialogState extends State<ReturnOrderDialog> {
       bool success = await OrderDetailService.cancelOrder(
         widget.orderId,
         widget.userId,
-        productId,
+        widget.productId,
         finalReason,
         {
           "accountNumber": widget.bankAccountController.text.trim(),

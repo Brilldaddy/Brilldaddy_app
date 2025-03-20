@@ -41,7 +41,6 @@ class _OrdersListState extends State<OrdersList> {
       final response =
           await http.get(Uri.parse('$SERVER_URL/user/orders/$userId'));
       final data = jsonDecode(response.body);
-      print(data);
 
       List fetchedOrders = [];
 
@@ -80,7 +79,6 @@ class _OrdersListState extends State<OrdersList> {
             ? item['productId']['images'][0].toString()
             : item['productId']['images'][0];
 
-        print("Image ID: $imageId");
         final imageResponse =
             await http.get(Uri.parse('$SERVER_URL/user/images/$imageId'));
         imageUrlsMap[imageId] = jsonDecode(imageResponse.body)['imageUrl'];

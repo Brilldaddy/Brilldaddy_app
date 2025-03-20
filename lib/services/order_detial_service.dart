@@ -9,6 +9,7 @@ class OrderDetailService {
         await http.get(Uri.parse('$SERVER_URL/user/order/$orderId'));
 
     if (response.statusCode == 200) {
+      print(response.request);
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to fetch order details: ${response.body}');
@@ -47,6 +48,8 @@ class OrderDetailService {
   ) async {
     final url = Uri.parse('$SERVER_URL/admin/cancel-order/$orderId');
 
+    print("Cancel product Id: $productId");
+
     final Map<String, dynamic> requestBody = {
       "userId": userId,
       "orderId": orderId,
@@ -65,12 +68,13 @@ class OrderDetailService {
       }
     };
 
+
     final response = await http.put(
       url,
       headers: {"Content-Type": "application/json"},
       body: jsonEncode(requestBody),
     );
-
+    print(response.toString());
     if (response.statusCode == 200) {
       return true;
     } else {
