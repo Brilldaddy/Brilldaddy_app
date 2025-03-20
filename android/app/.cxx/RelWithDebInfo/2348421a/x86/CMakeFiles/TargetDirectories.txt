@@ -1,0 +1,2 @@
+C:/Users/hp/StudioProjects/Brilldaddy_android/android/app/.cxx/RelWithDebInfo/2348421a/x86/CMakeFiles/edit_cache.dir
+C:/Users/hp/StudioProjects/Brilldaddy_android/android/app/.cxx/RelWithDebInfo/2348421a/x86/CMakeFiles/rebuild_cache.dir
