@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart' show SharedPreferences;
+import 'package:shared_preferences/shared_preferences.dart'
+    show SharedPreferences;
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({Key? key}) : super(key: key);
@@ -49,6 +50,9 @@ class _WalletScreenState extends State<WalletScreen> {
           transactions = (data['transactions'] ?? []).reversed.toList();
           isLoading = false;
         });
+
+        // Save wallet balance to SharedPreferences
+        await prefs.setDouble('walletBalance', balance ?? 0.0);
       } else {
         setState(() {
           error =
@@ -71,8 +75,10 @@ class _WalletScreenState extends State<WalletScreen> {
     return Scaffold(
       backgroundColor: Colors.blue.shade100,
       appBar: AppBar(
-        title: const Text('Wallet',
-        style: TextStyle(color: Colors.white),),
+        title: const Text(
+          'Wallet',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue,
         centerTitle: true,
       ),
@@ -105,13 +111,15 @@ class _WalletScreenState extends State<WalletScreen> {
                                 const Text(
                                   "Current Balance",
                                   style: TextStyle(
-                                      fontSize: 18, fontWeight: FontWeight.w500),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w500),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   "₹${balance?.toStringAsFixed(2) ?? "0.00"}",
                                   style: const TextStyle(
-                                      fontSize: 28, fontWeight: FontWeight.bold),
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
@@ -181,11 +189,10 @@ class _WalletScreenState extends State<WalletScreen> {
                                                         transaction[
                                                                 'description'] ??
                                                             '',
-                                                        style:
-                                                            const TextStyle(
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500),
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w500),
                                                       ),
                                                       Row(
                                                         children: [

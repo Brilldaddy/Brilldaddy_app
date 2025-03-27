@@ -29,11 +29,19 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   // For size selection (if applicable)
   String? selectedSize;
 
+  bool useWalletDiscount = false; // State to track wallet discount usage
+  double walletBalance = 100.0; // Example wallet balance
+  double walletOfferPrice =
+      0.0; // Discounted price after applying wallet discount
+  double walletDiscountAmount = 0.0; // Amount deducted from the wallet
+
   @override
   void initState() {
     super.initState();
     checkCartStatus();
     checkWishlistStatus();
+    fetchWalletBalance(); // Ensure wallet balance is fetched
+    calculateWalletDiscount(); // Calculate wallet discount
     // If product has sizes, initialize selectedSize with the first available size.
     if (widget.product.sizes != null && widget.product.sizes!.isNotEmpty) {
       selectedSize = widget.product.sizes!.first;
@@ -42,6 +50,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ..then((urls) {
         print("Fetched Image URLs: $urls"); // Debugging
       });
+  }
+
+  Future<void> fetchWalletBalance() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      walletBalance = prefs.getDouble('walletBalance') ?? 0.0;
+      print("Wallet Balance Fetched: $walletBalance"); // Debugging
+    });
+  }
+
+  void calculateWalletDiscount() {
+    if (walletBalance > 0) {
+      final tenPercentDiscount = widget.product.salePrice * 0.1;
+      final applicableDiscount = walletBalance < tenPercentDiscount
+          ? walletBalance
+          : tenPercentDiscount;
+      setState(() {
+        walletDiscountAmount = applicableDiscount;
+        walletOfferPrice = widget.product.salePrice - applicableDiscount;
+      });
+    } else {
+      setState(() {
+        walletDiscountAmount = 0.0;
+        walletOfferPrice = widget.product.salePrice;
+      });
+    }
   }
 
   Future<void> checkCartStatus() async {
@@ -195,6 +229,68 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     });
   }
 
+  Future<void> handleAddToCartWithWalletDiscount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId')?.trim();
+    final authToken = prefs.getString('authToken')?.trim();
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (!isLoggedIn ||
+        userId == null ||
+        userId.isEmpty ||
+        authToken == null ||
+        authToken.isEmpty) {
+      showSnackBar('Please login to continue');
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+      return;
+    }
+
+    // If product has sizes and no size is selected, show error.
+    if (widget.product.sizes != null &&
+        widget.product.sizes!.isNotEmpty &&
+        selectedSize == null) {
+      showSnackBar('Please select a size');
+      return;
+    }
+
+    final cartData = {
+      'userId': userId,
+      'productId': widget.product.id,
+      'quantity': 1,
+      'price': walletOfferPrice,
+      'walletDiscountApplied': true,
+      'walletDiscountAmount': walletDiscountAmount,
+      'selectedSize': selectedSize ?? "N/A",
+      'authToken': authToken,
+    };
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final success = await CartService.addToCart(cartData);
+      if (success) {
+        showSnackBar('Product added to cart successfully!');
+        setState(() {
+          isInCart = true;
+        });
+      } else {
+        showSnackBar('Failed to add to cart. Please try again.');
+      }
+    } catch (e) {
+      showSnackBar('An error occurred. Please try again.');
+      print('Error adding to cart: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   void showSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -238,9 +334,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          widget.product.name,
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        Flexible(
+          child: Text(
+            widget.product.name,
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
         ),
         IconButton(
           icon: Icon(
@@ -272,7 +370,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     return Row(
       children: [
         Text(
-          '₹${widget.product.salePrice}',
+          useWalletDiscount
+              ? '₹${walletOfferPrice.toStringAsFixed(2)}'
+              : '₹${widget.product.salePrice}',
           style: TextStyle(
               fontSize: 24, color: Colors.green, fontWeight: FontWeight.bold),
         ),
@@ -351,6 +451,39 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     );
   }
 
+  Widget buildWalletDiscountOption() {
+    print("Wallet Balance: $walletBalance"); // Debugging
+    print("Product Brand: ${widget.product.brand}"); // Debugging
+
+    if (walletBalance > 0 &&
+        widget.product.brand.toLowerCase() == "brilldaddy") {
+      return Row(
+        children: [
+          Checkbox(
+            value: useWalletDiscount,
+            onChanged: (bool? value) {
+              setState(() {
+                useWalletDiscount = value ?? false;
+                calculateWalletDiscount(); // Recalculate discount when toggled
+              });
+            },
+          ),
+          Expanded(
+            child: Text(
+              useWalletDiscount
+                  ? "Redeem Wallet Discount: ₹${walletBalance.toStringAsFixed(2)}"
+                  : "Wallet Discount Available: ₹${walletBalance.toStringAsFixed(2)}",
+              style: TextStyle(fontSize: 16, color: Colors.green.shade700),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return SizedBox
+          .shrink(); // Return an empty widget if the condition is not met
+    }
+  }
+
   Widget buildBottomBar() {
     return Padding(
       padding: EdgeInsets.all(16.0),
@@ -368,7 +501,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                 builder: (context) => CartScreen()),
                           );
                         }
-                      : handleAddToCartAndRemove),
+                      : (useWalletDiscount
+                          ? handleAddToCartWithWalletDiscount
+                          : handleAddToCartAndRemove)),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -459,6 +594,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             buildRating(),
             SizedBox(height: 16),
             buildPriceInfo(),
+            SizedBox(height: 16),
+            buildWalletDiscountOption(), // Ensure this is called here
             SizedBox(height: 16),
             buildDescription(),
             SizedBox(height: 16),
