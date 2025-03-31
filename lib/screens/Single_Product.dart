@@ -62,10 +62,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
   void calculateWalletDiscount() {
     if (walletBalance > 0) {
+      // Calculate 10% of the product sale price
       final tenPercentDiscount = widget.product.salePrice * 0.1;
+
+      // Use the lesser of wallet balance or 10% of the product price
       final applicableDiscount = walletBalance < tenPercentDiscount
           ? walletBalance
           : tenPercentDiscount;
+
       setState(() {
         walletDiscountAmount = applicableDiscount;
         walletOfferPrice = widget.product.salePrice - applicableDiscount;
@@ -457,6 +461,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
 
     if (walletBalance > 0 &&
         widget.product.brand.toLowerCase() == "brilldaddy") {
+      // Calculate 10% of the product sale price
+      final tenPercentDiscount = widget.product.salePrice * 0.1;
+
+      // Calculate the price after applying the discount
+      final discountedPrice = widget.product.salePrice - tenPercentDiscount;
+
       return Row(
         children: [
           Checkbox(
@@ -470,9 +480,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           Expanded(
             child: Text(
-              useWalletDiscount
-                  ? "Redeem Wallet Discount: ₹${walletBalance.toStringAsFixed(2)}"
-                  : "Wallet Discount Available: ₹${walletBalance.toStringAsFixed(2)}",
+              "Apply With Wallet Discount ₹${discountedPrice.toStringAsFixed(2)}",
               style: TextStyle(fontSize: 16, color: Colors.green.shade700),
             ),
           ),
