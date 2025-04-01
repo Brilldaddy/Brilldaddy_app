@@ -50,6 +50,7 @@ dependencies:
   pdf: ^3.11.3
   google_fonts: ^6.2.1
   open_file: ^3.5.10
+  url_launcher: ^6.3.1
   
 
 dev_dependencies:

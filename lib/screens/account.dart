@@ -10,6 +10,8 @@ import '../component/account/personal_info.dart';
 import '../services/wishlist.dart' as wishlistService;
 import 'order_list_screen.dart';
 import 'wishlist.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -184,7 +186,46 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 );
               }),
-              // buildListItem('Logout', Icons.logout, () {}),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.instagram,
+                        color: Colors.pink),
+                    onPressed: () => launchUrl(Uri.parse(
+                        "https://www.instagram.com/brilldaddyindia?utm_source=qr&igsh=bncxeGJhMDhha3Uy")),
+                  ),
+                  const SizedBox(width: 15),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.facebook,
+                        color: Colors.blue),
+                    onPressed: () => launchUrl(Uri.parse(
+                        "https://www.facebook.com/share/19nVo2w31d/")),
+                  ),
+                  const SizedBox(width: 15),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.youtube,
+                        color: Colors.red),
+                    onPressed: () => launchUrl(
+                        Uri.parse("https://www.youtube.com/@brilldaddyIndia")),
+                  ),
+                  const SizedBox(width: 15),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.xTwitter,
+                        color: Colors.black),
+                    onPressed: () => launchUrl(Uri.parse(
+                        "https://x.com/brilldaddyindia?t=SstK4-I-Wb5g7oLapgdY9A&s=09")),
+                  ),
+                  const SizedBox(width: 15),
+                  IconButton(
+                    icon: const FaIcon(FontAwesomeIcons.whatsapp,
+                        color: Colors.green),
+                    onPressed: () => launchUrl(Uri.parse(
+                        "https://whatsapp.com/channel/0029Vb0utaiHQbRv48FXbh2w")),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

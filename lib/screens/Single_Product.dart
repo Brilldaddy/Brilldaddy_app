@@ -30,7 +30,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   String? selectedSize;
 
   bool useWalletDiscount = false; // State to track wallet discount usage
-  double walletBalance = 100.0; // Example wallet balance
+  double walletBalance = 0; // Example wallet balance
   double walletOfferPrice =
       0.0; // Discounted price after applying wallet discount
   double walletDiscountAmount = 0.0; // Amount deducted from the wallet
@@ -61,23 +61,31 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   void calculateWalletDiscount() {
-    if (walletBalance > 0) {
-      // Calculate 10% of the product sale price
-      final tenPercentDiscount = widget.product.salePrice * 0.1;
+    if (walletBalance >= 0) {
+      double discountedPrice = widget.product.salePrice;
 
-      // Use the lesser of wallet balance or 10% of the product price
-      final applicableDiscount = walletBalance < tenPercentDiscount
-          ? walletBalance
-          : tenPercentDiscount;
+      if (walletBalance == widget.product.salePrice) {
+        // Wallet balance is equal to product value
+        discountedPrice = 0; // Final payable amount is zero
+        walletDiscountAmount =
+            widget.product.salePrice; // Deduct full product value from wallet
+      } else if (walletBalance > widget.product.salePrice) {
+        // Wallet balance is greater than product value
+        discountedPrice = 0; // Final payable amount is zero
+        walletDiscountAmount =
+            widget.product.salePrice; // Deduct product value from wallet
+        walletBalance =
+            walletBalance - widget.product.salePrice; // Update wallet balance
+      } else {
+        // Wallet balance is less than product value
+        discountedPrice = widget.product.salePrice -
+            walletBalance; // Remaining amount after wallet deduction
+        walletDiscountAmount = walletBalance; // Deduct full wallet balance
+        walletBalance = 0; // Wallet balance becomes zero
+      }
 
       setState(() {
-        walletDiscountAmount = applicableDiscount;
-        walletOfferPrice = widget.product.salePrice - applicableDiscount;
-      });
-    } else {
-      setState(() {
-        walletDiscountAmount = 0.0;
-        walletOfferPrice = widget.product.salePrice;
+        walletOfferPrice = discountedPrice;
       });
     }
   }
@@ -375,11 +383,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       children: [
         Text(
           useWalletDiscount
-              ? '₹${walletOfferPrice.toStringAsFixed(2)}'
-              : '₹${widget.product.salePrice}',
+              ? '₹${walletOfferPrice.toStringAsFixed(2)}' // Display the reduced price
+              : '₹${widget.product.salePrice}', // Display the original sale price
           style: TextStyle(
               fontSize: 24, color: Colors.green, fontWeight: FontWeight.bold),
         ),
+        SizedBox(width: 8),
+        if (useWalletDiscount &&
+            walletBalance > 0 &&
+            walletBalance < widget.product.salePrice)
+          Text(
+            '(- ₹${walletBalance.toStringAsFixed(2)})', // Display the wallet amount being deducted
+            style: TextStyle(
+                fontSize: 16, color: Colors.red, fontWeight: FontWeight.bold),
+          ),
         SizedBox(width: 8),
         if (widget.product.productPrice > widget.product.salePrice)
           Text(
@@ -456,16 +473,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   Widget buildWalletDiscountOption() {
-    print("Wallet Balance: $walletBalance"); // Debugging
-    print("Product Brand: ${widget.product.brand}"); // Debugging
-
     if (walletBalance > 0 &&
         widget.product.brand.toLowerCase() == "brilldaddy") {
-      // Calculate 10% of the product sale price
-      final tenPercentDiscount = widget.product.salePrice * 0.1;
-
-      // Calculate the price after applying the discount
-      final discountedPrice = widget.product.salePrice - tenPercentDiscount;
+      double applicableDiscount = walletBalance >= widget.product.salePrice
+          ? widget.product.salePrice
+          : walletBalance; // Use wallet balance if less than product sale price
 
       return Row(
         children: [
@@ -480,7 +492,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           ),
           Expanded(
             child: Text(
-              "Apply With Wallet Discount ₹${discountedPrice.toStringAsFixed(2)}",
+              "Apply With Wallet Discount ₹${applicableDiscount.toStringAsFixed(2)}",
               style: TextStyle(fontSize: 16, color: Colors.green.shade700),
             ),
           ),
