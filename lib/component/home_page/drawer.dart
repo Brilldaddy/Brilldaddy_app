@@ -3,13 +3,16 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../screens/ContactUsPage.dart';
+import '../../screens/Grievance_policy.dart';
 import '../../screens/PrivacyPolicyPage.dart';
 import '../../screens/RefundPolicyPage.dart';
+import '../../screens/ShippingAndDelivery.dart';
 import '../../screens/WalletScreen.dart';
 import '../../screens/about.dart';
 import '../../screens/account.dart';
 import '../../screens/login_screen.dart';
 import '../../screens/shop_category_page.dart';
+import '../../screens/terms_and_condition.dart';
 import '/../services/api_service.dart';
 
 class DrawerMenu extends StatefulWidget {
@@ -82,15 +85,14 @@ class _DrawerMenuState extends State<DrawerMenu> {
               ),
             );
           }),
-          _buildDrawerItem(
-              Icons.account_balance_wallet_rounded, 'Wallet', () {
+          _buildDrawerItem(Icons.account_balance_wallet_rounded, 'Wallet', () {
             Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) => WalletScreen(),
               ),
             );
-              }),
+          }),
           ExpansionTile(
             leading: const Icon(Icons.category),
             title: const Text('Categories'),
@@ -143,7 +145,31 @@ class _DrawerMenuState extends State<DrawerMenu> {
               ),
             );
           }),
-          _buildDrawerItem(Icons.description, 'Terms and Conditions', () {}),
+          _buildDrawerItem(Icons.description, 'Terms and Conditions', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => TermsAndConditionPage(),
+              ),
+            );
+          }),
+          _buildDrawerItem(Icons.local_shipping, 'Shipping and Delivery', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    ShippingAndDeliveryPage(), // Replace with your actual page
+              ),
+            );
+          }),
+          _buildDrawerItem(Icons.policy, 'Grievance Redressal Policy', () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => GrievanceRedressalPolicyPage(), // Replace with your actual page
+    ),
+  );
+}),
           _buildDrawerItem(
             isLoggedIn ? Icons.logout : Icons.login,
             isLoggedIn ? 'Logout' : 'Login',

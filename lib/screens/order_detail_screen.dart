@@ -51,7 +51,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Future<void> fetchOrderDetails() async {
     try {
       final data = await OrderDetailService.fetchOrderDetails(widget.id);
-      print("Order Details: $data"); // Debugging
 
       setState(() {
         order = data;
@@ -67,9 +66,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         if (data.containsKey('cartItems') && data['cartItems'].isNotEmpty) {
           fetchImages([data]); // Pass the order as a list
         }
-
+print("Return button check: ${order!['orderStatus']}");
         // Extract delivery date
-        if (data['deliveredAt'] != null) {
+        if (data.containsKey('deliveredAt') && data['deliveredAt'] != null) {
           deliveryDate = DateTime.parse(data['deliveredAt']);
           final now = DateTime.now();
           final difference = now.difference(deliveryDate!).inDays;
@@ -80,7 +79,6 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         }
         print("Order Status: $status");
         print("Is Cancel Button Disabled: $isCancelButtonDisabled");
-        print("Is return Button Disabled: $isReturnEligible");
 
         // Assign bank details if present
         final bankDetails = data['bankDetails'] ?? {};
@@ -244,7 +242,7 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                if (order!['orderStatus'] == 'Delivered' && isReturnEligible)
+                if (order!['status'] == 'Delivered' && !isReturnEligible)
                   ElevatedButton.icon(
                     onPressed: () {
                       showReturnOrderPopup();
@@ -258,8 +256,8 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                       padding: EdgeInsets.all(12),
                     ),
                   )
-                else if (order!['orderStatus'] != 'Delivered' &&
-                    !isCancelButtonDisabled)
+                else if (order!['status'] != 'Delivered' &&
+                    !isCancelButtonDisabled && order!['status'] != 'Cancelled')
                   ElevatedButton.icon(
                     onPressed: () {
                       showCancelOrderPopup();
