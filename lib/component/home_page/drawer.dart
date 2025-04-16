@@ -137,7 +137,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
               ),
             );
           }),
-          _buildDrawerItem(Icons.attach_money, 'Refund Policy', () {
+          _buildDrawerItem(Icons.attach_money, 'Return And Cancellation Policy', () {
             Navigator.push(
               context,
               MaterialPageRoute(

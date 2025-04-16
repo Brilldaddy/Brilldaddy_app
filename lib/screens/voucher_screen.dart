@@ -89,7 +89,7 @@ class _VoucherPageState extends State<VoucherPage> {
     } else {
       // Handle Razorpay payment
       var options = {
-        'key': 'rzp_test_yjMX4hSQ75uCRn',
+        'key': 'rzp_live_9T9zvmkanSYabO',
         'amount': voucher.price * 100,
         'currency': 'INR',
         'name': 'BrillDaddy Ecommerce Pvt Ltd.',
@@ -181,12 +181,15 @@ class _VoucherPageState extends State<VoucherPage> {
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(16)),
                     child: voucher.imageUrl.isNotEmpty
-                        ? Image.network(
-                            voucher.imageUrl,
-                            height: 150,
-                            width: double.infinity,
-                            fit: BoxFit.fill,
-                          )
+                        ? Container(
+                          color: Colors.white,
+                          child: Image.network(
+                              voucher.imageUrl,
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                            ),
+                        )
                         : Container(
                             height: 150,
                             color: Colors.grey[300],

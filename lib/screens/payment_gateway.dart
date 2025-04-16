@@ -97,7 +97,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
           if (responseData['success'] && responseData['order'] != null) {
             var options = {
-              'key': "rzp_test_yjMX4hSQ75uCRn",
+              'key': "rzp_live_9T9zvmkanSYabO",
               'amount': amountInPaise, // ✅ Ensure amount is in paise
               'currency': 'INR',
               'name': "BRILLDADDY ECOMMERCE PVT LTD.",

@@ -139,11 +139,15 @@ class _VoucherScreenState extends State<VoucherScreen> {
                                     borderRadius: BorderRadius.vertical(
                                         top: Radius.circular(16)),
                                     child: voucher.imageUrl.isNotEmpty
-                                        ? Image.network(
-                                            voucher.imageUrl,
-                                            width: double.infinity,
-                                            fit: BoxFit.fill,
-                                          )
+                                        ? Container(
+                                          color: Colors.white,
+                                          child: Image.network(
+                                              voucher.imageUrl,
+                                              width: double.infinity,
+                                              fit: BoxFit.contain,
+                                              
+                                            ),
+                                        )
                                         : Container(
                                             color: Colors.grey[300],
                                             child:

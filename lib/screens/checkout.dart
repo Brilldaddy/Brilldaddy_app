@@ -97,7 +97,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     double totalAmount = widget.product.salePrice * quantity * 100;
 
     var options = {
-      'key': 'rzp_test_yjMX4hSQ75uCRn',
+      'key': 'rzp_live_9T9zvmkanSYabO',
       'amount': totalAmount.toInt(),
       'currency': 'INR',
       'name': 'BRILLDADDY ECOMMERCE PVT LTD.',

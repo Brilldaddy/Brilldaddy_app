@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../component/home_page/ProductScreen.dart';
+import '../component/home_page/catagory_product_list.dart';
 import '../component/voucher_page/winner_page.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
@@ -25,7 +26,6 @@ class _HomePageState extends State<HomePage> {
 
   bool isLoggedIn = false;
 
-
   @override
   void initState() {
     super.initState();
@@ -40,7 +40,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-
   Future<void> saveUserData(String userId, String authToken) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('userId', userId.trim());
@@ -48,52 +47,54 @@ class _HomePageState extends State<HomePage> {
     await prefs.setBool('isLoggedIn', true);
   }
 
- 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
       appBar: custom.NavigationBar(scaffoldKey: _scaffoldKey),
       endDrawer: const DrawerMenu(),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Container(
-              color: const Color.fromARGB(255, 195, 228, 239),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AdvertisementCarousel(),
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: WinnersMarquee(),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      "Exclusive Vouchers",
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  SizedBox(height: 300, child: VoucherScreen()),
-                  const CategoryScroller(),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text(
-                      "Products",
-                      style:
-                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  SizedBox(height: 300, child: ProductScreen()),
-                ],
+      body: SingleChildScrollView(
+        child: Container(
+          color: const Color.fromARGB(255, 195, 228, 239),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AdvertisementCarousel(),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: WinnersMarquee(),
               ),
-            ),
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Exclusive Vouchers",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+              SizedBox(height: 300, child: VoucherScreen()),
+              const CategoryScroller(),
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Products",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ),
+              SizedBox(height: 300, child: ProductScreen()),
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  "Products by Category",
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+              ),
+              // Wrap CategoryProductList in a constrained container
+             
+                 const CategoryProductList(),
+              
+            ],
           ),
-        
-        ],
+        ),
       ),
     );
   }
